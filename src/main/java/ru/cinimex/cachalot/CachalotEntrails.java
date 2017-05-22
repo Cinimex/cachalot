@@ -53,16 +53,33 @@ public abstract class CachalotEntrails {
      */
     protected abstract void feed() throws Exception;
 
+    /**
+     * Local logs will contain all information about configuration and processing.
+     * The output can be quite complex.
+     * @return self.
+     */
     public CachalotEntrails enableDataTrace() {
         traceOn = true;
         return this;
     }
 
+    /**
+     * Indicates, that your test use jms as underlying system. Method accepts
+     * {@link javax.jms.ConnectionFactory} as input and opens different scope of
+     * jms related api calls.
+     * @param factory is {@link ConnectionFactory}
+     * @return nested config as {@link JmsCachalotEntrails}
+     */
     public JmsCachalotEntrails usingJms(final ConnectionFactory factory) {
         jmsCachalotEntrails = new JmsCachalotEntrails(factory);
         return jmsCachalotEntrails;
     }
 
+    /**
+     * Indicates, that your test use database for manipulating data before/after execution.
+     * @param dataSource is {@link DataSource}
+     * @return nested config as {@link JdbcCachalotEntrails}
+     */
     public JdbcCachalotEntrails withState(final DataSource dataSource) {
         jdbcCachalotEntrails = new JdbcCachalotEntrails(dataSource);
         return jdbcCachalotEntrails;
@@ -273,6 +290,10 @@ public abstract class CachalotEntrails {
             notNull(jmsTemplate, "Illegal call #" + callFrom + " before CachalotEntrails#usingJms");
         }
 
+        /**
+         * @param queue target queue to send message.
+         * @return self.
+         */
         public JmsCachalotEntrails sendTo(String queue) {
             validateState("sendTo");
             notNull(queue, "Send queue must be specified");
@@ -281,6 +302,13 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * @param queue message queue to receive message from. This queue will be added to response queue collection.
+         * By default assumed, that each queue produce one message. I.e. if you want to receive multiple messages
+         * from one queue, you can call this method multiple times, or call #receiveFrom(Collection<String> outQueues).
+         * This method call is not idempotent: it's changing state of underlying infrastructure.
+         * @return self.
+         */
         public JmsCachalotEntrails receiveFrom(String queue) {
             validateState("receiveFrom");
             notNull(queue, "Receive queue must be specified");
@@ -289,6 +317,10 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Same as #receiveFrom(String outQueue), but for multiple queues at once.
+         * @return self.
+         */
         public JmsCachalotEntrails receiveFrom(Collection<String> queues) {
             validateState("receiveFrom");
             notNull(queues, "Receive queues must be specified");
@@ -298,6 +330,11 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Append headers to jms message.
+         * @param headers to append.
+         * @return self.
+         */
         public JmsCachalotEntrails withHeaders(Map<String, ?> headers) {
             validateState("withHeaders");
             notNull(headers, "Headers must be specified");
@@ -306,6 +343,12 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Append header to jms message.
+         * @param header to append.
+         * @param value to append.
+         * @return self.
+         */
         public JmsCachalotEntrails withHeader(String header, Object value) {
             validateState("withHeader");
             notNull(header, "Header name must be specified");
@@ -315,6 +358,10 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Indicates in-only interaction. Test flow won't be waiting for response.
+         * @return self.
+         */
         public JmsCachalotEntrails withoutResponse() {
             validateState("withoutResponse");
             expectingResponse = false;
@@ -323,6 +370,10 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * @param message to send. It could be any string text.
+         * @return self.
+         */
         public JmsCachalotEntrails withSpecifiedInput(String message) {
             validateState("withSpecifiedInput");
             notNull(message, "Input must be specified, if you call #withSpecifiedInput");
@@ -331,6 +382,12 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * If provided, received messages will be compared with the body. If it won't be found, test will be considered
+         * as failed.
+         * @param message to compare.
+         * @return self.
+         */
         public JmsCachalotEntrails withExpectedResponse(String message) {
             validateState("withExpectedResponse");
             notNull(message, "Output must be specified, if you call #withExpectedResponse");
@@ -339,6 +396,10 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Same as #withExpectedResponse(String message), but all messages will be compared with responses.
+         * @return self.
+         */
         public JmsCachalotEntrails withExpectedResponse(Collection<String> messages) {
             validateState("withExpectedResponse");
             notNull(messages, "Output must be specified, if you call #withExpectedResponse");
@@ -348,6 +409,10 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * @param millis timeout for each message to be received.
+         * @return self.
+         */
         public JmsCachalotEntrails waitNotMoreThen(long millis) {
             validateState("waitNotMoreThen");
             timeout = millis;
@@ -355,6 +420,10 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Complete the subsystem (jms) configuration and returns to main config.
+         * @return {@link CachalotEntrails} as main config.
+         */
         public CachalotEntrails ingest() {
             if (jmsTemplate != null) {
                 notNull(inQueue, "Send queue must be specified");

@@ -1,4 +1,4 @@
- #Cachalot
+ <h1>Cachalot</h1>
  
  Simple infrastructure for spring-based applications integration testing.
  
