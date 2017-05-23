@@ -23,6 +23,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jms.core.JmsTemplate;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import lombok.AccessLevel;
@@ -133,11 +134,7 @@ public abstract class CachalotEntrails {
             if (cachalotEntrails.expectingResponse) {
                 long timeout = cachalotEntrails.timeout;
 
-                ExecutorService executor = Executors.newCachedThreadPool(runnable -> {
-                    Thread thread = new Thread(runnable);
-                    thread.setName("CachalotWatcher ");
-                    return thread;
-                });
+                ExecutorService executor = Executors.newCachedThreadPool(new CustomizableThreadFactory("CachalotWatcher"));
 
                 try {
                     //Possibility to uncontrolled growth.
