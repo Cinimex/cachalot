@@ -43,7 +43,7 @@
                                                                                                                                                                                          ;,:::::;       
 
  
- ###Как кормить кашалота:
+ <h3>Как кормить кашалота:</h3>
  
  1. Inherit:     
  
@@ -73,7 +73,7 @@
  
  4. It's done.
  
- ####Dsl meaning:
+ <h4>Dsl meaning:</h4>
  
 * enableDataTrace()  
     
@@ -120,13 +120,13 @@
         Append headers to jms message.
 * ingest()  
 
-        Complete the subsystem (jms) configuration and returns to main config.
+        Complete the subsystem (jms or jdbc or any...) configuration and returns to main config.
 * withState(DataSource dataSource)  
        
         Indicates, that your test use database for manipulating data before/after execution.
 * beforeFeed(Supplier<? extends String> initializer)  
        
-        Initializer will be used before test execution for initial state maniputating.
+        Initializer will be used before test execution for initial state manipulating.
         It could be implemented as simple lambda: () -> "UPDATE MY_TABLE SET PROPERTY = 'AB' WHERE PROPERTY = 'BA'".
         This method is not idempotent, i.e. each call will add statement to execute.
 * beforeFeed(Collection<Supplier<? extends String>> initializers)  

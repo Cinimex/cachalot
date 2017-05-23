@@ -48,7 +48,6 @@ public abstract class CachalotEntrails {
 
     /**
      * Configure your test flow using {@link CachalotEntrails} dsl.
-     *
      * @throws Exception in case you wanna say something.
      */
     protected abstract void feed() throws Exception;
@@ -91,6 +90,10 @@ public abstract class CachalotEntrails {
         }
     }
 
+    /**
+     * Main execution logic.
+     * @throws Exception if something wrong happens.
+     */
     @Test
     public void deepSwim() throws Exception {
         revealWomb("Prepare to deep swim");
@@ -229,6 +232,13 @@ public abstract class CachalotEntrails {
             revealWomb("JdbcTemplate initialized with {}", dataSource);
         }
 
+        /**
+         * Initializer will be used before test execution for initial state manipulating.
+         * It could be implemented as simple lambda: () -> "UPDATE MY_TABLE SET PROPERTY = 'AB' WHERE PROPERTY = 'BA'".
+         * This method is not idempotent, i.e. each call will add statement to execute.
+         * @param initializer is statement supplier to process.
+         * @return self.
+         */
         public JdbcCachalotEntrails beforeFeed(Supplier<? extends String> initializer) {
             notNull(initializer, "Given initializer must not be null");
             initialState.add(initializer);
@@ -236,6 +246,11 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Same as #beforeFeed(Supplier<? extends String> initializer), but for multiple statements.
+         * @param initializers are statement suppliers to process.
+         * @return self.
+         */
         public JdbcCachalotEntrails beforeFeed(Collection<Supplier<? extends String>> initializers) {
             notNull(initializers, "Given initializers must not be null");
             notEmpty(initializers, "Given initializers must not be null");
@@ -244,6 +259,13 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Validate database state after test run.
+         * This method is not idempotent, i.e. each call will add a rule to validate.
+         * It rule validation fail, then test will be considered as failed.
+         * @param verificator is {@link JdbcValidationRule} to check.
+         * @return self.
+         */
         public JdbcCachalotEntrails afterFeed(JdbcValidationRule<?> verificator) {
             notNull(verificator, "Given verificator must not be null");
             terminalState.add(verificator);
@@ -251,6 +273,11 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Same as #afterFeed(JdbcValidationRule<?> verificator), but for multiple rules at once.
+         * @param verificators are {@link JdbcValidationRule} to check.
+         * @return self.
+         */
         public JdbcCachalotEntrails afterFeed(Collection<JdbcValidationRule<?>> verificators) {
             notNull(verificators, "Given verificators must not be null");
             notEmpty(verificators, "Given verificators must not be null");
@@ -259,6 +286,10 @@ public abstract class CachalotEntrails {
             return this;
         }
 
+        /**
+         * Complete the subsystem (jdbc) configuration and returns to main config.
+         * @return {@link CachalotEntrails} as main config.
+         */
         public CachalotEntrails ingest() {
             return CachalotEntrails.this;
         }

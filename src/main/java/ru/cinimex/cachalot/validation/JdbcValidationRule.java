@@ -12,6 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import static org.springframework.util.Assert.notNull;
 
+/**
+ * Check to perform with database.
+ * @param <T> is entity type to check.
+ */
 @Slf4j
 @SuppressWarnings("unused")
 public class JdbcValidationRule<T> {
@@ -21,6 +25,13 @@ public class JdbcValidationRule<T> {
     private final String query;
     private final Collection<Predicate<T>> rules = new ArrayList<>();
 
+    /**
+     * Validation rule constructor.
+     * @param template is a {@link JdbcTemplate} to use.
+     * @param mapper is a {@link RowMapper} to transform entity.
+     * @param rule is a {@link Predicate}, that contains validation logic.
+     * @param query to execute for rule.
+     */
     public JdbcValidationRule(JdbcTemplate template, RowMapper<T> mapper, Predicate<T> rule, String query) {
         notNull(template, "Template must not be null");
         notNull(mapper, "Mapper must not be null");
@@ -32,6 +43,13 @@ public class JdbcValidationRule<T> {
         this.rules.add(rule);
     }
 
+    /**
+     * Validation rule constructor.
+     * @param template is a {@link JdbcTemplate} to use.
+     * @param mapper is a {@link RowMapper} to transform entity.
+     * @param rules are {@link Predicate}, that contains validation logic.
+     * @param query to execute for rule.
+     */
     public JdbcValidationRule(JdbcTemplate template, RowMapper<T> mapper, Collection<Predicate<T>> rules, String query) {
         notNull(template, "Template must not be null");
         notNull(mapper, "Mapper must not be null");
@@ -43,15 +61,10 @@ public class JdbcValidationRule<T> {
         this.rules.addAll(rules);
     }
 
-    public JdbcValidationRule(JdbcTemplate template, RowMapper<T> mapper, String query) {
-        notNull(template, "Template must not be null");
-        notNull(mapper, "Mapper must not be null");
-        notNull(query, "Query must not be null");
-        this.template = template;
-        this.mapper = mapper;
-        this.query = query;
-    }
-
+    /**
+     * Perform validation logic.
+     * @return true if validation succeed, false otherwise.
+     */
     public boolean validate() {
         List<T> items = template.query(this.query, mapper);
         log.debug("Returned items: {}", items);
