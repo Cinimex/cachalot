@@ -47,21 +47,16 @@
  
  1. Inherit and Override:  
 ```java
-
 class MyAwesomeScenario extends CachalotEntrails {
-
     @Override
     protected void feed() throws Exception {
-        
     }
-            
 }
-
 ```
  2. Use dsl inside feed to describe your scenario (it's a bit like Camel):  
+
 ```java
 class MyAwesomeScenario extends CachalotEntrails {
-
     @Override
     protected void feed() throws Exception {
         enableDataTrace()
@@ -77,9 +72,7 @@ class MyAwesomeScenario extends CachalotEntrails {
                 .afterFeed(rule)
             .ingest();
     }
-            
 }
-
 ```
         
  3. It's done.
