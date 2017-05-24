@@ -45,34 +45,44 @@
  
  <h3>Как кормить кашалота:</h3>
  
- 1. Inherit:  
+ 1. Inherit and Override:  
 ```java
-class MyAwesomeScenario extends CachalotEntrails {...}
-```
- 2. Override:  
-```java
-@Override
-protected void feed() throws Exception {...}
+
+class MyAwesomeScenario extends CachalotEntrails {
+
+    @Override
+    protected void feed() throws Exception {
+        
+    }
+            
+}
 
 ```
- 3. Use dsl inside feed to describe your scenario (it's a bit like Camel):  
+ 2. Use dsl inside feed to describe your scenario (it's a bit like Camel):  
 ```java
-enableDataTrace()
-    .usingJms(factory)
-        .sendTo("INPUT_QUEUE")
-        .withSpecifiedInput("<Message></Message>")
-        .receiveFrom("OUTPUT_QUEUE")
-        .withExpectedResponse("<Message><Transformed/></Message>")
-        .waitNotMoreThen(7000)
-    .ingest()
-    .withState(dataSource)
-        .beforeFeed(() -> "TRUNCATE MY_TABLE CASCADE")
-        .afterFeed(rule)
-    .ingest();
+class MyAwesomeScenario extends CachalotEntrails {
+
+    @Override
+    protected void feed() throws Exception {
+        enableDataTrace()
+            .usingJms(factory)
+                .sendTo("INPUT_QUEUE")
+                .withSpecifiedInput("<Message></Message>")
+                .receiveFrom("OUTPUT_QUEUE")
+                .withExpectedResponse("<Message><Transformed/></Message>")
+                .waitNotMoreThen(7000)
+            .ingest()
+            .withState(dataSource)
+                .beforeFeed(() -> "TRUNCATE MY_TABLE CASCADE")
+                .afterFeed(rule)
+            .ingest();
+    }
+            
+}
+
 ```
         
- 
- 4. It's done.
+ 3. It's done.
  
  <h4>Dsl meaning:</h4>
  
