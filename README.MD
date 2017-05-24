@@ -45,7 +45,7 @@
  
  <h3>Как кормить кашалота:</h3>
  
- 1. Inherit and Override:  
+ * Inherit and Override:  
 
 ```java
 class MyAwesomeScenario extends CachalotEntrails {
@@ -55,7 +55,7 @@ class MyAwesomeScenario extends CachalotEntrails {
 }
 ```
 
- 2. Use dsl inside feed to describe your scenario (it's a bit like Camel):  
+ * Use dsl inside feed to describe your scenario (it's a bit like Camel):  
 
 ```java
 class MyAwesomeScenario extends CachalotEntrails {
