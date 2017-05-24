@@ -46,18 +46,18 @@
  <h3>Как кормить кашалота:</h3>
  
  1. Inherit:
-```java    
+```java
 class MyAwesomeScenario extends CachalotEntrails {...}
 ```
  2. Override:
-```java    
+```java
 
 @Override
 protected void feed() throws Exception {...}
 
 ```
  3. Use dsl inside feed to describe your scenario (it's a bit like Camel):
-```java    
+```java
 enableDataTrace()
     .usingJms(factory)
         .sendTo("INPUT_QUEUE")
