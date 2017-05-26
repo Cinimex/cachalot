@@ -68,6 +68,10 @@ public class JdbcValidationRule<T> {
     public boolean validate() {
         List<T> items = template.query(this.query, mapper);
         log.debug("Returned items: {}", items);
+        if (items.isEmpty()) {
+            log.warn("No items found");
+            return false;
+        }
         for (T item : items) {
             log.debug("Validating {}", item);
             for (Predicate<T> rule : rules) {
