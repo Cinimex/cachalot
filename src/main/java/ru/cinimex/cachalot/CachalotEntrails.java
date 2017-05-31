@@ -203,10 +203,27 @@ public abstract class CachalotEntrails {
             }
         });
 
-        //Sync cause we don't need parallel here
+        //Single threaded cause we don't need parallel here
         Optional.ofNullable(jdbcCachalotEntrails).ifPresent(cachalotEntrails -> {
             for (JdbcValidationRule<?> validationRule : cachalotEntrails.terminalState) {
-                if (!validationRule.validate()) {
+                long begin = System.currentTimeMillis();
+                boolean validated = false;
+                //So, validation rule must eventually completes with success or error.
+                //Eventually means that it could be async operations in tested system,
+                //so we need to wait the time lag to make the correct check.
+                do {
+                    if (validationRule.validate()) {
+                        validated = true;
+                    }
+                    //Wait for a while.
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException ignored) {
+                        ignored.printStackTrace();
+                    }
+                } while (begin + cachalotEntrails.timeout > System.currentTimeMillis());
+
+                if (!validated) {
                     revealWomb("Validation rule violated {}", validationRule);
                     Assert.fail();
                 } else {
@@ -222,6 +239,7 @@ public abstract class CachalotEntrails {
         private final JdbcTemplate jdbcTemplate;
         private final Collection<Supplier<? extends String>> initialState = new ArrayList<>();
         private final Collection<JdbcValidationRule<?>> terminalState = new ArrayList<>();
+        private long timeout = 0;
 
         private JdbcCachalotEntrails(final DataSource dataSource) {
             notNull(dataSource, "DataSource must be specified");
@@ -280,6 +298,18 @@ public abstract class CachalotEntrails {
             notEmpty(verificators, "Given verificators must not be null");
             terminalState.addAll(verificators);
             revealWomb("Verificators added {}", verificators);
+            return this;
+        }
+
+        /**
+         * @param millis timeout for rule to be validated. (It's could be async processing)
+         *      If {@link JdbcValidationRule} returns false even after timeout,
+         *      test intended to be failed.
+         * @return self.
+         */
+        public JdbcCachalotEntrails waitNotMoreThen(long millis) {
+            timeout = millis;
+            revealWomb("Timeout set to {} millis", millis);
             return this;
         }
 
