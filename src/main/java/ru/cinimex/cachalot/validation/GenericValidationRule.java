@@ -36,7 +36,6 @@ public class GenericValidationRule<T> implements ValidationRule<T> {
      */
     @Override
     public boolean validate(T t) {
-        System.out.println("GenericValidationRule validation happen!");
         for (Predicate<T> rule : rules) {
             if (!(rule.test(t))) {
                 return false;
