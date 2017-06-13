@@ -18,7 +18,7 @@ import static org.springframework.util.Assert.notNull;
  */
 @Slf4j
 @SuppressWarnings("unused")
-public class JdbcValidationRule<T> {
+public class JdbcValidationRule<T> implements ValidationRule<T>{
 
     private final JdbcTemplate template;
     private final RowMapper<T> mapper;
@@ -65,7 +65,8 @@ public class JdbcValidationRule<T> {
      * Perform validation logic.
      * @return true if validation succeed, false otherwise.
      */
-    public boolean validate() {
+    @Override
+    public boolean validate(T t) {
         List<T> items = template.query(this.query, mapper);
         log.debug("Returned items: {}", items);
         if (items.isEmpty()) {

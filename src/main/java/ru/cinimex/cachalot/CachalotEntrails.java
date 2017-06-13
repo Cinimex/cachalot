@@ -30,8 +30,10 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import ru.cinimex.cachalot.validation.JdbcValidationRule;
+import ru.cinimex.cachalot.validation.ValidationRule;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
+import static org.springframework.util.Assert.isTrue;
 import static org.springframework.util.Assert.notEmpty;
 import static org.springframework.util.Assert.notNull;
 
@@ -49,6 +51,7 @@ public abstract class CachalotEntrails {
 
     /**
      * Configure your test flow using {@link CachalotEntrails} dsl.
+     *
      * @throws Exception in case you wanna say something.
      */
     protected abstract void feed() throws Exception;
@@ -56,6 +59,7 @@ public abstract class CachalotEntrails {
     /**
      * Local logs will contain all information about configuration and processing.
      * The output can be quite complex.
+     *
      * @return self.
      */
     public CachalotEntrails enableDataTrace() {
@@ -67,6 +71,7 @@ public abstract class CachalotEntrails {
      * Indicates, that your test use jms as underlying system. Method accepts
      * {@link javax.jms.ConnectionFactory} as input and opens different scope of
      * jms related api calls.
+     *
      * @param factory is {@link ConnectionFactory}
      * @return nested config as {@link JmsCachalotEntrails}
      */
@@ -77,6 +82,7 @@ public abstract class CachalotEntrails {
 
     /**
      * Indicates, that your test use database for manipulating data before/after execution.
+     *
      * @param dataSource is {@link DataSource}
      * @return nested config as {@link JdbcCachalotEntrails}
      */
@@ -93,6 +99,7 @@ public abstract class CachalotEntrails {
 
     /**
      * Main execution logic.
+     *
      * @throws Exception if something wrong happens.
      */
     @Test
@@ -193,6 +200,12 @@ public abstract class CachalotEntrails {
                     }
                 }
 
+                for (ValidationRule<? super String> rule : cachalotEntrails.terminalState) {
+                    for (String message : digested) {
+                        isTrue(rule.validate(message), "Test failed! \nMessage = " + message + ", \nrule = " + rule + ".");
+                    }
+                }
+
                 //Now let's validate received bodies, if they was provided
                 if (!cachalotEntrails.outMessages.isEmpty()) {
                     Collection<String> expected = cachalotEntrails.outMessages;
@@ -205,14 +218,14 @@ public abstract class CachalotEntrails {
 
         //Single threaded cause we don't need parallel here
         Optional.ofNullable(jdbcCachalotEntrails).ifPresent(cachalotEntrails -> {
-            for (JdbcValidationRule<?> validationRule : cachalotEntrails.terminalState) {
+            for (ValidationRule<?> validationRule : cachalotEntrails.terminalState) {
                 long begin = System.currentTimeMillis();
                 boolean validated = false;
                 //So, validation rule must eventually completes with success or error.
                 //Eventually means that it could be async operations in tested system,
                 //so we need to wait the time lag to make the correct check.
                 do {
-                    if (validationRule.validate()) {
+                    if (validationRule.validate(null)) {
                         validated = true;
                     }
                     //Wait for a while.
@@ -238,7 +251,7 @@ public abstract class CachalotEntrails {
 
         private final JdbcTemplate jdbcTemplate;
         private final Collection<Supplier<? extends String>> initialState = new ArrayList<>();
-        private final Collection<JdbcValidationRule<?>> terminalState = new ArrayList<>();
+        private final Collection<ValidationRule<?>> terminalState = new ArrayList<>();
         private long timeout = 0;
 
         private JdbcCachalotEntrails(final DataSource dataSource) {
@@ -251,6 +264,7 @@ public abstract class CachalotEntrails {
          * Initializer will be used before test execution for initial state manipulating.
          * It could be implemented as simple lambda: () -> "UPDATE MY_TABLE SET PROPERTY = 'AB' WHERE PROPERTY = 'BA'".
          * This method is not idempotent, i.e. each call will add statement to execute.
+         *
          * @param initializer is statement supplier to process.
          * @return self.
          */
@@ -263,6 +277,7 @@ public abstract class CachalotEntrails {
 
         /**
          * Same as #beforeFeed(Supplier<? extends String> initializer), but for multiple statements.
+         *
          * @param initializers are statement suppliers to process.
          * @return self.
          */
@@ -278,10 +293,11 @@ public abstract class CachalotEntrails {
          * Validate database state after test run.
          * This method is not idempotent, i.e. each call will add a rule to validate.
          * It rule validation fail, then test will be considered as failed.
-         * @param verificator is {@link JdbcValidationRule} to check.
+         *
+         * @param verificator is {@link ValidationRule} to check.
          * @return self.
          */
-        public JdbcCachalotEntrails afterFeed(JdbcValidationRule<?> verificator) {
+        public JdbcCachalotEntrails afterFeed(ValidationRule<?> verificator) {
             notNull(verificator, "Given verificator must not be null");
             terminalState.add(verificator);
             revealWomb("Verificator added {}", verificator);
@@ -290,10 +306,11 @@ public abstract class CachalotEntrails {
 
         /**
          * Same as #afterFeed(JdbcValidationRule<?> verificator), but for multiple rules at once.
-         * @param verificators are {@link JdbcValidationRule} to check.
+         *
+         * @param verificators are {@link ValidationRule} to check.
          * @return self.
          */
-        public JdbcCachalotEntrails afterFeed(Collection<JdbcValidationRule<?>> verificators) {
+        public JdbcCachalotEntrails afterFeed(Collection<ValidationRule<?>> verificators) {
             notNull(verificators, "Given verificators must not be null");
             notEmpty(verificators, "Given verificators must not be null");
             terminalState.addAll(verificators);
@@ -303,8 +320,8 @@ public abstract class CachalotEntrails {
 
         /**
          * @param millis timeout for rule to be validated. (It's could be async processing)
-         *      If {@link JdbcValidationRule} returns false even after timeout,
-         *      test intended to be failed.
+         *               If {@link ValidationRule} returns false even after timeout,
+         *               test intended to be failed.
          * @return self.
          */
         public JdbcCachalotEntrails waitNotMoreThen(long millis) {
@@ -315,6 +332,7 @@ public abstract class CachalotEntrails {
 
         /**
          * Complete the subsystem (jdbc) configuration and returns to main config.
+         *
          * @return {@link CachalotEntrails} as main config.
          */
         public CachalotEntrails ingest() {
@@ -337,6 +355,7 @@ public abstract class CachalotEntrails {
         private final Map<String, ? super Object> headers = new HashMap<>();
         private boolean expectingResponse = true;
         private long timeout = Long.MAX_VALUE;
+        private final Collection<ValidationRule<? super String>> terminalState = new ArrayList<>();
 
         private JmsCachalotEntrails(final ConnectionFactory factory) {
             notNull(factory, "Provided connection factory must not be null");
@@ -346,6 +365,13 @@ public abstract class CachalotEntrails {
 
         private void validateState(String callFrom) {
             notNull(jmsTemplate, "Illegal call #" + callFrom + " before CachalotEntrails#usingJms");
+        }
+
+        public JmsCachalotEntrails addRule(ValidationRule<? super String> rule) {
+            notNull(rule, "Given rule must not be null");
+            terminalState.add(rule);
+            revealWomb("Rule added {}", rule);
+            return this;
         }
 
         /**
@@ -362,9 +388,9 @@ public abstract class CachalotEntrails {
 
         /**
          * @param queue message queue to receive message from. This queue will be added to response queue collection.
-         * By default assumed, that each queue produce one message. I.e. if you want to receive multiple messages
-         * from one queue, you can call this method multiple times, or call #receiveFrom(Collection<String> outQueues).
-         * This method call is not idempotent: it's changing state of underlying infrastructure.
+         *              By default assumed, that each queue produce one message. I.e. if you want to receive multiple messages
+         *              from one queue, you can call this method multiple times, or call #receiveFrom(Collection<String> outQueues).
+         *              This method call is not idempotent: it's changing state of underlying infrastructure.
          * @return self.
          */
         public JmsCachalotEntrails receiveFrom(String queue) {
@@ -377,6 +403,7 @@ public abstract class CachalotEntrails {
 
         /**
          * Same as #receiveFrom(String outQueue), but for multiple queues at once.
+         *
          * @return self.
          */
         public JmsCachalotEntrails receiveFrom(Collection<String> queues) {
@@ -390,6 +417,7 @@ public abstract class CachalotEntrails {
 
         /**
          * Append headers to jms message.
+         *
          * @param headers to append.
          * @return self.
          */
@@ -403,8 +431,9 @@ public abstract class CachalotEntrails {
 
         /**
          * Append header to jms message.
+         *
          * @param header to append.
-         * @param value to append.
+         * @param value  to append.
          * @return self.
          */
         public JmsCachalotEntrails withHeader(String header, Object value) {
@@ -418,6 +447,7 @@ public abstract class CachalotEntrails {
 
         /**
          * Indicates in-only interaction. Test flow won't be waiting for response.
+         *
          * @return self.
          */
         public JmsCachalotEntrails withoutResponse() {
@@ -443,6 +473,7 @@ public abstract class CachalotEntrails {
         /**
          * If provided, received messages will be compared with the body. If it won't be found, test will be considered
          * as failed.
+         *
          * @param message to compare.
          * @return self.
          */
@@ -456,6 +487,7 @@ public abstract class CachalotEntrails {
 
         /**
          * Same as #withExpectedResponse(String message), but all messages will be compared with responses.
+         *
          * @return self.
          */
         public JmsCachalotEntrails withExpectedResponse(Collection<String> messages) {
@@ -480,11 +512,16 @@ public abstract class CachalotEntrails {
 
         /**
          * Complete the subsystem (jms) configuration and returns to main config.
+         *
          * @return {@link CachalotEntrails} as main config.
          */
         public CachalotEntrails ingest() {
             if (jmsTemplate != null) {
                 notNull(inQueue, "Send queue must be specified");
+                if ((terminalState != null) && (!(terminalState.isEmpty()))) {
+                    isTrue(expectingResponse, "Collection of validation rules isn't empty, at the same time " +
+                            "response is not expected.");
+                }
                 if (expectingResponse) {
                     notNull(outQueues, "Receive queues must be specified");
                     notEmpty(outQueues, "Receive queues must be specified");
