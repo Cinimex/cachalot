@@ -145,6 +145,6 @@ class MyAwesomeScenario extends CachalotEntrails {
         It rule validation fail, then test will be considered as failed.
 * afterFeed(Collection<JdbcValidationRule<?>> verificators)  
         
-        Same as #afterFeed(JdbcValidationRule<?> verificator), but for multiple rules at once.
+        Same as #afterFeed(JdbcValidationRule<?> verificator), but for multiple predicates at once.
           
           

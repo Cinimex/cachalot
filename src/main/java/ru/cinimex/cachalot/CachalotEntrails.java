@@ -29,7 +29,6 @@ import org.springframework.test.context.junit4.SpringRunner;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import ru.cinimex.cachalot.validation.JdbcValidationRule;
 import ru.cinimex.cachalot.validation.ValidationRule;
 
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
@@ -46,8 +45,8 @@ public abstract class CachalotEntrails {
     private JmsCachalotEntrails jmsCachalotEntrails;
     private JdbcCachalotEntrails jdbcCachalotEntrails;
     private CompletionService<String> cachalotTummy;
-    private boolean traceOn;
     private final Collection<String> digested = new ArrayList<>();
+    private boolean traceOn;
 
     /**
      * Configure your test flow using {@link CachalotEntrails} dsl.
@@ -200,7 +199,7 @@ public abstract class CachalotEntrails {
                     }
                 }
 
-                for (ValidationRule<? super String> rule : cachalotEntrails.terminalState) {
+                for (ValidationRule<? super String> rule : cachalotEntrails.validationRules) {
                     for (String message : digested) {
                         isTrue(rule.validate(message), "Test failed! \nMessage = " + message + ", \nrule = " + rule + ".");
                     }
@@ -230,11 +229,11 @@ public abstract class CachalotEntrails {
                     }
                     //Wait for a while.
                     try {
-                        Thread.sleep(100);
+                        Thread.sleep(500);
                     } catch (InterruptedException ignored) {
                         ignored.printStackTrace();
                     }
-                } while (begin + cachalotEntrails.timeout > System.currentTimeMillis());
+                } while (!validated && begin + cachalotEntrails.timeout > System.currentTimeMillis());
 
                 if (!validated) {
                     revealWomb("Validation rule violated {}", validationRule);
@@ -355,7 +354,7 @@ public abstract class CachalotEntrails {
         private final Map<String, ? super Object> headers = new HashMap<>();
         private boolean expectingResponse = true;
         private long timeout = Long.MAX_VALUE;
-        private final Collection<ValidationRule<? super String>> terminalState = new ArrayList<>();
+        private final Collection<ValidationRule<? super String>> validationRules = new ArrayList<>();
 
         private JmsCachalotEntrails(final ConnectionFactory factory) {
             notNull(factory, "Provided connection factory must not be null");
@@ -369,7 +368,7 @@ public abstract class CachalotEntrails {
 
         public JmsCachalotEntrails addRule(ValidationRule<? super String> rule) {
             notNull(rule, "Given rule must not be null");
-            terminalState.add(rule);
+            validationRules.add(rule);
             revealWomb("Rule added {}", rule);
             return this;
         }
@@ -518,9 +517,10 @@ public abstract class CachalotEntrails {
         public CachalotEntrails ingest() {
             if (jmsTemplate != null) {
                 notNull(inQueue, "Send queue must be specified");
-                if ((terminalState != null) && (!(terminalState.isEmpty()))) {
-                    isTrue(expectingResponse, "Collection of validation rules isn't empty, at the same time " +
-                            "response is not expected.");
+
+                if (!validationRules.isEmpty()) {
+                    String error = "Validation rules present, at the same time response is not expected";
+                    isTrue(expectingResponse, error);
                 }
                 if (expectingResponse) {
                     notNull(outQueues, "Receive queues must be specified");

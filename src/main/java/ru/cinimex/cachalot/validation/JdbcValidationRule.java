@@ -23,61 +23,59 @@ public class JdbcValidationRule<T> implements ValidationRule<T>{
     private final JdbcTemplate template;
     private final RowMapper<T> mapper;
     private final String query;
-    private final Collection<Predicate<T>> rules = new ArrayList<>();
+    private final Collection<Predicate<T>> predicates = new ArrayList<>();
 
     /**
      * Validation rule constructor.
      * @param template is a {@link JdbcTemplate} to use.
      * @param mapper is a {@link RowMapper} to transform entity.
-     * @param rule is a {@link Predicate}, that contains validation logic.
+     * @param predicate is a {@link Predicate}, that contains validation logic.
      * @param query to execute for rule.
      */
-    public JdbcValidationRule(JdbcTemplate template, RowMapper<T> mapper, Predicate<T> rule, String query) {
+    public JdbcValidationRule(JdbcTemplate template, RowMapper<T> mapper, Predicate<T> predicate, String query) {
         notNull(template, "Template must not be null");
         notNull(mapper, "Mapper must not be null");
-        notNull(rule, "Rule must not be null");
+        notNull(predicate, "Rule must not be null");
         notNull(query, "Query must not be null");
         this.template = template;
         this.mapper = mapper;
         this.query = query;
-        this.rules.add(rule);
+        this.predicates.add(predicate);
     }
 
     /**
      * Validation rule constructor.
      * @param template is a {@link JdbcTemplate} to use.
      * @param mapper is a {@link RowMapper} to transform entity.
-     * @param rules are {@link Predicate}, that contains validation logic.
+     * @param predicates are {@link Predicate}, that contains validation logic.
      * @param query to execute for rule.
      */
-    public JdbcValidationRule(JdbcTemplate template, RowMapper<T> mapper, Collection<Predicate<T>> rules, String query) {
+    public JdbcValidationRule(JdbcTemplate template, RowMapper<T> mapper, Collection<Predicate<T>> predicates, String query) {
         notNull(template, "Template must not be null");
         notNull(mapper, "Mapper must not be null");
-        notNull(rules, "Rule must not be null");
+        notNull(predicates, "Rule must not be null");
         notNull(query, "Query must not be null");
         this.template = template;
         this.mapper = mapper;
         this.query = query;
-        this.rules.addAll(rules);
+        this.predicates.addAll(predicates);
     }
 
     /**
      * Perform validation logic.
      * @return true if validation succeed, false otherwise.
      */
-    @Override
-    public boolean validate(T t) {
-        List<T> items = template.query(this.query, mapper);
-        log.debug("Returned items: {}", items);
+    public boolean validate(T noopItem) {
+        List<T> items = template.query(query, mapper);
+        log.debug("Returned items size: {}", items.size());
         if (items.isEmpty()) {
-            log.warn("No items found");
             return false;
         }
         for (T item : items) {
             log.debug("Validating {}", item);
-            for (Predicate<T> rule : rules) {
-                if (!rule.test(item)) {
-                    log.error("Rule violation occurred: {}: {}", rule, item);
+            for (Predicate<T> predicate : predicates) {
+                if (!predicate.test(item)) {
+                    log.error("Rule violation occurred: {}: {}", predicate, item);
                     return false;
                 }
             }
@@ -91,7 +89,7 @@ public class JdbcValidationRule<T> implements ValidationRule<T>{
         sb.append("  template = ").append(template).append("\n");
         sb.append("  mapper = ").append(mapper).append("\n");
         sb.append("  query = '").append(query).append('\n');
-        sb.append("  rules = ").append(rules).append("\n");
+        sb.append("  predicates = ").append(predicates).append("\n");
         sb.append(']');
         return sb.toString();
     }
