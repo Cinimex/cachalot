@@ -2,17 +2,16 @@ package ru.cinimex.cachalot;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionService;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
-import java.util.stream.IntStream;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
 import javax.jms.TextMessage;
@@ -28,10 +27,11 @@ import org.springframework.test.context.junit4.SpringRunner;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import ru.cinimex.cachalot.validation.ValidationRule;
 
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.springframework.util.Assert.isTrue;
 import static org.springframework.util.Assert.notEmpty;
 import static org.springframework.util.Assert.notNull;
@@ -44,8 +44,8 @@ public abstract class CachalotEntrails {
 
     private JmsCachalotEntrails jmsCachalotEntrails;
     private JdbcCachalotEntrails jdbcCachalotEntrails;
-    private CompletionService<String> cachalotTummy;
-    private final Collection<String> digested = new ArrayList<>();
+    private CompletionService<JmsCachalotEntrails.JmsExpectation> cachalotTummy;
+    private final Collection<JmsCachalotEntrails.JmsExpectation> digested = new ArrayList<>();
     private boolean traceOn;
 
     /**
@@ -133,7 +133,7 @@ public abstract class CachalotEntrails {
             revealWomb("Message successfully sent into {}", cachalotEntrails.inQueue);
         });
 
-        final Collection<Future<String>> calls = new ArrayList<>();
+        final Collection<Future<JmsCachalotEntrails.JmsExpectation>> calls = new CopyOnWriteArrayList<>();
 
         //Multithreaded response consuming. Cause we could receive more than one response for one request.
         Optional.ofNullable(jmsCachalotEntrails).ifPresent(cachalotEntrails -> {
@@ -146,51 +146,45 @@ public abstract class CachalotEntrails {
                     //Possibility to uncontrolled growth.
                     cachalotTummy = new ExecutorCompletionService<>(executor);
 
-                    List<String> queues = cachalotEntrails.outQueues;
-                    List<JmsTemplate> receivers = cachalotEntrails.receivers;
+                    Collection<JmsCachalotEntrails.JmsExpectation> expectations = cachalotEntrails.expectations;
 
-                    String error = "Inconsistent state. Receivers count must match queues count";
-                    Assert.assertEquals(error, queues.size(), receivers.size());
+                    expectations.forEach(expectation -> calls.add(cachalotTummy.submit(() -> {
+                        revealWomb("Calling response from {} with timeout {} millis", expectation.queue, timeout);
+                        expectation.template.setReceiveTimeout(timeout);
+                        Message message = expectation.template.receive(expectation.queue);
+                        //Avoid null check, but works only fro text message for now.
+                        if (message instanceof TextMessage) {
+                            revealWomb("Received text message");
+                            expectation.actual = ((TextMessage) message).getText();
+                            return expectation;
+                        }
+                        revealWomb("Received unknown type jms message");
+                        return null;
+                    })));
 
-                    //noinspection CodeBlock2Expr
-                    IntStream.range(0, queues.size()).forEach(i -> {
-                        calls.add(cachalotTummy.submit(() -> {
-                            revealWomb("Calling response from {} with timeout {} millis", queues.get(i), timeout);
-                            JmsTemplate receiver = receivers.get(i);
-                            receiver.setReceiveTimeout(timeout);
-                            Message message = receiver.receive(queues.get(i));
-                            //Avoid null check, but works only fro text message for now.
-                            if (message instanceof TextMessage) {
-                                revealWomb("Received text message");
-                                return ((TextMessage) message).getText();
-                            }
-                            revealWomb("Received unknown type jms message");
-                            return null;
-                        }));
-                    });
                 } finally {
                     executor.shutdown();
                 }
 
-                Future<String> call;
+                Future<JmsCachalotEntrails.JmsExpectation> call;
                 while (calls.size() > 0) {
                     try {
                         //block until a callable completes
                         call = cachalotTummy.take();
                         revealWomb("Received completed future: {}", call);
                         calls.remove(call);
-                        //Get message, if the Callable was able to create it.
-                        String message = call.get();
-                        if (message == null) {
+                        //Get expectation, if the Callable was able to create it.
+                        JmsCachalotEntrails.JmsExpectation expectation = call.get();
+                        if (expectation == null) {
                             Assert.fail("Message was not received in configured timeout: " + timeout + " millis");
                         }
-                        revealWomb("Received message:\n{}", message);
-                        digested.add(message);
+                        revealWomb("Received message:\n{}", expectation.actual);
+                        digested.add(expectation);
                     } catch (Exception e) {
                         Throwable cause = e.getCause();
                         log.error("Message receiving failed due to: " + cause, e);
 
-                        for (Future<String> future : calls) {
+                        for (Future<JmsCachalotEntrails.JmsExpectation> future : calls) {
                             //Try to cancel all pending tasks.
                             future.cancel(true);
                         }
@@ -198,19 +192,14 @@ public abstract class CachalotEntrails {
                         Assert.fail("Message receiving failed due to: " + cause);
                     }
                 }
-
-                for (ValidationRule<? super String> rule : cachalotEntrails.validationRules) {
-                    for (String message : digested) {
-                        isTrue(rule.validate(message), "Test failed! \nMessage = " + message + ", \nrule = " + rule + ".");
+                for (JmsCachalotEntrails.JmsExpectation expectation : digested) {
+                    if (expectation.expected != null) {
+                        Assert.assertEquals("Expected and actual messages differ!", expectation.expected, expectation.actual);
                     }
-                }
-
-                //Now let's validate received bodies, if they was provided
-                if (!cachalotEntrails.outMessages.isEmpty()) {
-                    Collection<String> expected = cachalotEntrails.outMessages;
-                    revealWomb("Expected responses size {}, actual responses size {}", expected.size(), digested.size());
-                    Assert.assertEquals("Responses count doesn't match", expected.size(), digested.size());
-                    Assert.assertThat(digested, hasItems(expected.toArray(new String[expected.size()])));
+                    expectation.validationRules.forEach(rule -> {
+                        String error = "Test failed! \nMessage = " + expectation.actual + ", " + "\nrule = " + rule + ".";
+                        isTrue(rule.validate(expectation.actual), error);
+                    });
                 }
             }
         });
@@ -344,17 +333,12 @@ public abstract class CachalotEntrails {
     protected final class JmsCachalotEntrails {
 
         private final JmsTemplate jmsTemplate;
-        //We should create one receiver per queue; It's possible to receive multiple messages from the same queue, if
-        //queue name was provided multiple times.
-        private final List<JmsTemplate> receivers = new ArrayList<>();
+        private final Map<String, ? super Object> headers = new ConcurrentHashMap<>();
         private String inQueue;
         private String inMessage;
-        private final List<String> outQueues = new ArrayList<>();
-        private final Collection<String> outMessages = new ArrayList<>();
-        private final Map<String, ? super Object> headers = new HashMap<>();
         private boolean expectingResponse = true;
         private long timeout = Long.MAX_VALUE;
-        private final Collection<ValidationRule<? super String>> validationRules = new ArrayList<>();
+        private Collection<JmsExpectation> expectations = new CopyOnWriteArrayList<>();
 
         private JmsCachalotEntrails(final ConnectionFactory factory) {
             notNull(factory, "Provided connection factory must not be null");
@@ -364,13 +348,6 @@ public abstract class CachalotEntrails {
 
         private void validateState(String callFrom) {
             notNull(jmsTemplate, "Illegal call #" + callFrom + " before CachalotEntrails#usingJms");
-        }
-
-        public JmsCachalotEntrails addRule(ValidationRule<? super String> rule) {
-            notNull(rule, "Given rule must not be null");
-            validationRules.add(rule);
-            revealWomb("Rule added {}", rule);
-            return this;
         }
 
         /**
@@ -390,28 +367,14 @@ public abstract class CachalotEntrails {
          *              By default assumed, that each queue produce one message. I.e. if you want to receive multiple messages
          *              from one queue, you can call this method multiple times, or call #receiveFrom(Collection<String> outQueues).
          *              This method call is not idempotent: it's changing state of underlying infrastructure.
-         * @return self.
+         * @return {@link JmsExpectation} instance.
          */
-        public JmsCachalotEntrails receiveFrom(String queue) {
+        public JmsExpectation receiveFrom(String queue) {
             validateState("receiveFrom");
             notNull(queue, "Receive queue must be specified");
-            outQueues.add(queue);
-            revealWomb("Out queue set {}", queue);
-            return this;
-        }
-
-        /**
-         * Same as #receiveFrom(String outQueue), but for multiple queues at once.
-         *
-         * @return self.
-         */
-        public JmsCachalotEntrails receiveFrom(Collection<String> queues) {
-            validateState("receiveFrom");
-            notNull(queues, "Receive queues must be specified");
-            notEmpty(queues, "Receive queues must be specified");
-            outQueues.addAll(queues);
-            revealWomb("Out queues set {}", queues);
-            return this;
+            JmsExpectation expectation = new JmsExpectation(queue);
+            expectations.add(expectation);
+            return expectation;
         }
 
         /**
@@ -470,35 +433,6 @@ public abstract class CachalotEntrails {
         }
 
         /**
-         * If provided, received messages will be compared with the body. If it won't be found, test will be considered
-         * as failed.
-         *
-         * @param message to compare.
-         * @return self.
-         */
-        public JmsCachalotEntrails withExpectedResponse(String message) {
-            validateState("withExpectedResponse");
-            notNull(message, "Output must be specified, if you call #withExpectedResponse");
-            outMessages.add(message);
-            revealWomb("Out message {}", message);
-            return this;
-        }
-
-        /**
-         * Same as #withExpectedResponse(String message), but all messages will be compared with responses.
-         *
-         * @return self.
-         */
-        public JmsCachalotEntrails withExpectedResponse(Collection<String> messages) {
-            validateState("withExpectedResponse");
-            notNull(messages, "Output must be specified, if you call #withExpectedResponse");
-            notEmpty(messages, "Output must be specified, if you call #withExpectedResponse");
-            outMessages.addAll(messages);
-            revealWomb("Out messages {}", messages);
-            return this;
-        }
-
-        /**
          * @param millis timeout for each message to be received.
          * @return self.
          */
@@ -518,19 +452,60 @@ public abstract class CachalotEntrails {
             if (jmsTemplate != null) {
                 notNull(inQueue, "Send queue must be specified");
 
-                if (!validationRules.isEmpty()) {
-                    String error = "Validation rules present, at the same time response is not expected";
+                if (!expectations.isEmpty()) {
+                    String error = "Jms destinations present, at the same time response is not expected";
                     isTrue(expectingResponse, error);
                 }
                 if (expectingResponse) {
-                    notNull(outQueues, "Receive queues must be specified");
-                    notEmpty(outQueues, "Receive queues must be specified");
-                    IntStream.range(0, outQueues.size()).forEach(i ->
-                            receivers.add(new JmsTemplate(jmsTemplate.getConnectionFactory())));
-                    revealWomb("Receivers added. Count: {}", receivers.size());
+                    notNull(expectations, "Receive queues must be specified");
+                    notEmpty(expectations, "Receive queues must be specified");
+                    revealWomb("Receivers added. Count: {}", expectations.size());
+                } else {
+                    Assert.assertThat("Response not expected, but jms response queue was provided", expectations, hasSize(0));
                 }
             }
             return CachalotEntrails.this;
+        }
+
+        public class JmsExpectation {
+            @NonNull
+            private String queue;
+            private String expected;
+            private String actual;
+            private JmsTemplate template;
+            private Collection<ValidationRule<? super String>> validationRules = new ArrayList<>();
+
+            private JmsExpectation(String queue) {
+                this.queue = queue;
+                this.template = new JmsTemplate(jmsTemplate.getConnectionFactory());
+                revealWomb("Out queue set {}", queue);
+            }
+
+            public JmsExpectation addRule(ValidationRule<? super String> rule) {
+                notNull(rule, "Given rule must not be null");
+                validationRules.add(rule);
+                revealWomb("Rule added {}", rule);
+                return this;
+            }
+
+            /**
+             * If provided, received messages will be compared with the body. If it won't be found, test will be considered
+             * as failed.
+             *
+             * @param message to compare.
+             * @return self.
+             */
+            public JmsExpectation withExpectedResponse(String message) {
+                validateState("withExpectedResponse");
+                notNull(message, "Output must be specified, if you call #withExpectedResponse");
+                this.expected = message;
+                revealWomb("Out message {}", message);
+                return this;
+            }
+
+            public JmsCachalotEntrails expect() {
+                return JmsCachalotEntrails.this;
+            }
         }
     }
 

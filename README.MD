@@ -102,9 +102,6 @@ class MyAwesomeScenario extends CachalotEntrails {
         By default assumed, that each queue produce one message. I.e. if you want to receive multiple messages
         from one queue, you can call this method multiple times, or call #receiveFrom(Collection<String> outQueues).
         This method call is not idempotent: it's changing state of underlying infrastructure.
-* receiveFrom(Collection<String> outQueues)  
-
-        Same as #receiveFrom(String outQueue), but for multiple queues at once.
 * withExpectedResponse(String message)
          
         If provided, received messages will be compared with the body. If it won't be found, test will be considered
