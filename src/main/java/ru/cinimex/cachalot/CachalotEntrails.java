@@ -337,7 +337,7 @@ public abstract class CachalotEntrails {
         private String inQueue;
         private String inMessage;
         private boolean expectingResponse = true;
-        private long timeout = Long.MAX_VALUE;
+        private long timeout = JmsTemplate.RECEIVE_TIMEOUT_INDEFINITE_WAIT;
         private Collection<JmsExpectation> expectations = new CopyOnWriteArrayList<>();
 
         private JmsCachalotEntrails(final ConnectionFactory factory) {
