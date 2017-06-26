@@ -29,9 +29,11 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import ru.cinimex.cachalot.validation.GenericValidationRule;
 import ru.cinimex.cachalot.validation.ValidationRule;
 
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.springframework.jms.support.destination.JmsDestinationAccessor.RECEIVE_TIMEOUT_NO_WAIT;
 import static org.springframework.util.Assert.isTrue;
 import static org.springframework.util.Assert.notEmpty;
 import static org.springframework.util.Assert.notNull;
@@ -107,7 +109,8 @@ public abstract class CachalotEntrails {
         feed();
         revealWomb("Cachalot feeded");
 
-        //Sync cause we don't need parallel here
+        // sync cause we don't need parallel here
+        // it's jdbc preconditions run.
         Optional.ofNullable(jdbcCachalotEntrails).ifPresent(cachalotEntrails -> {
             for (Supplier<? extends String> supplier : cachalotEntrails.initialState) {
                 String query = supplier.get();
@@ -116,7 +119,34 @@ public abstract class CachalotEntrails {
             }
         });
 
-        //Sync cause we don't need parallel here
+        // sync cause we don't need parallel here
+        // it's jms preconditions run.
+        Optional.ofNullable(jmsCachalotEntrails).ifPresent(cachalotEntrails -> {
+            // check if client requested ravage
+            if (cachalotEntrails.shouldRavage) {
+                revealWomb("Queues ravage requested");
+                // clear input queue first
+                cachalotEntrails.jmsTemplate.setReceiveTimeout(RECEIVE_TIMEOUT_NO_WAIT);
+                int inputQueueMessagesCount = 0;
+                while (jmsCachalotEntrails.jmsTemplate.receive(cachalotEntrails.inQueue) != null) {
+                    revealWomb("Cleared {} from input queue", ++inputQueueMessagesCount);
+                }
+
+                // clear all out queues
+                Collection<JmsCachalotEntrails.JmsExpectation> expectations = jmsCachalotEntrails.expectations;
+                for (JmsCachalotEntrails.JmsExpectation expectation : expectations) {
+                    expectation.template.setReceiveTimeout(RECEIVE_TIMEOUT_NO_WAIT);
+                    int outputQueueMessagesCount = 0;
+                    while (expectation.template.receive(expectation.queue) != null) {
+                        revealWomb("Cleared {} from {} queue", ++inputQueueMessagesCount, expectation.queue);
+                    }
+                }
+                revealWomb("Queues ravaged");
+            }
+        });
+
+        // sync cause we don't need parallel here
+        // it's jms sending.
         Optional.ofNullable(jmsCachalotEntrails).ifPresent(cachalotEntrails -> {
             revealWomb("Prepare to send {} into {}", cachalotEntrails.inMessage, cachalotEntrails.inQueue);
             cachalotEntrails.jmsTemplate.send(cachalotEntrails.inQueue, session -> {
@@ -135,7 +165,8 @@ public abstract class CachalotEntrails {
 
         final Collection<Future<JmsCachalotEntrails.JmsExpectation>> calls = new CopyOnWriteArrayList<>();
 
-        //Multithreaded response consuming. Cause we could receive more than one response for one request.
+        // multithreaded jms response consuming.
+        // cause we could receive more than one response for one request.
         Optional.ofNullable(jmsCachalotEntrails).ifPresent(cachalotEntrails -> {
             if (cachalotEntrails.expectingResponse) {
                 long timeout = cachalotEntrails.timeout;
@@ -143,7 +174,7 @@ public abstract class CachalotEntrails {
                 ExecutorService executor = Executors.newCachedThreadPool(new CustomizableThreadFactory("CachalotWatcher"));
 
                 try {
-                    //Possibility to uncontrolled growth.
+                    // possibility to uncontrolled growth.
                     cachalotTummy = new ExecutorCompletionService<>(executor);
 
                     Collection<JmsCachalotEntrails.JmsExpectation> expectations = cachalotEntrails.expectations;
@@ -169,11 +200,11 @@ public abstract class CachalotEntrails {
                 Future<JmsCachalotEntrails.JmsExpectation> call;
                 while (calls.size() > 0) {
                     try {
-                        //block until a callable completes
+                        // block until a callable completes
                         call = cachalotTummy.take();
                         revealWomb("Received completed future: {}", call);
                         calls.remove(call);
-                        //Get expectation, if the Callable was able to create it.
+                        // get expectation, if the Callable was able to create it.
                         JmsCachalotEntrails.JmsExpectation expectation = call.get();
                         if (expectation == null) {
                             Assert.fail("Message was not received in configured timeout: " + timeout + " millis");
@@ -185,10 +216,10 @@ public abstract class CachalotEntrails {
                         log.error("Message receiving failed due to: " + cause, e);
 
                         for (Future<JmsCachalotEntrails.JmsExpectation> future : calls) {
-                            //Try to cancel all pending tasks.
+                            // try to cancel all pending tasks.
                             future.cancel(true);
                         }
-                        //Fail
+                        // fail
                         Assert.fail("Message receiving failed due to: " + cause);
                     }
                 }
@@ -204,19 +235,20 @@ public abstract class CachalotEntrails {
             }
         });
 
-        //Single threaded cause we don't need parallel here
+        // single threaded cause we don't need parallel here
+        // jdbc post-conditions here
         Optional.ofNullable(jdbcCachalotEntrails).ifPresent(cachalotEntrails -> {
             for (ValidationRule<?> validationRule : cachalotEntrails.terminalState) {
                 long begin = System.currentTimeMillis();
                 boolean validated = false;
-                //So, validation rule must eventually completes with success or error.
-                //Eventually means that it could be async operations in tested system,
-                //so we need to wait the time lag to make the correct check.
+                // so, validation rule must eventually completes with success or error.
+                // eventually means that it could be async operations in tested system,
+                // so we need to wait the time lag to make the correct check.
                 do {
                     if (validationRule.validate(null)) {
                         validated = true;
                     }
-                    //Wait for a while.
+                    // wait for a while.
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException ignored) {
@@ -337,6 +369,7 @@ public abstract class CachalotEntrails {
         private String inQueue;
         private String inMessage;
         private boolean expectingResponse = true;
+        private boolean shouldRavage = false;
         private long timeout = JmsTemplate.RECEIVE_TIMEOUT_INDEFINITE_WAIT;
         private Collection<JmsExpectation> expectations = new CopyOnWriteArrayList<>();
 
@@ -365,7 +398,7 @@ public abstract class CachalotEntrails {
         /**
          * @param queue message queue to receive message from. This queue will be added to response queue collection.
          *              By default assumed, that each queue produce one message. I.e. if you want to receive multiple messages
-         *              from one queue, you can call this method multiple times, or call #receiveFrom(Collection<String> outQueues).
+         *              from one queue, you can call this method multiple times.
          *              This method call is not idempotent: it's changing state of underlying infrastructure.
          * @return {@link JmsExpectation} instance.
          */
@@ -444,6 +477,17 @@ public abstract class CachalotEntrails {
         }
 
         /**
+         * If specified, the {@code input} and all {@code output} queues will be cleared before
+         * test run. Clearing will be performed as {@link JmsTemplate#receive} with
+         * {@link JmsTemplate#RECEIVE_TIMEOUT_NO_WAIT} timeout.
+         * @return self.
+         */
+        public JmsCachalotEntrails withRavage() {
+            shouldRavage = true;
+            return this;
+        }
+
+        /**
          * Complete the subsystem (jms) configuration and returns to main config.
          *
          * @return {@link CachalotEntrails} as main config.
@@ -481,6 +525,16 @@ public abstract class CachalotEntrails {
                 revealWomb("Out queue set {}", queue);
             }
 
+            /**
+             * @param rule is {@link ValidationRule} instance. It could be {@link GenericValidationRule} or custom
+             *             implementation of the rule. If provided, received message will be validated against this
+             *             rule. If it returns false, test will be considered as failed.
+             *             Note: this operation, like many others, is not idempotent. I.e. it changes the state of
+             *             underlying infrastructure. You can add multiple rules for one message by calling
+             *             {@link #addRule(ValidationRule)} multiple times.
+             * @return self.
+             */
+            @SuppressWarnings("JavaDoc")
             public JmsExpectation addRule(ValidationRule<? super String> rule) {
                 notNull(rule, "Given rule must not be null");
                 validationRules.add(rule);
@@ -489,8 +543,8 @@ public abstract class CachalotEntrails {
             }
 
             /**
-             * If provided, received messages will be compared with the body. If it won't be found, test will be considered
-             * as failed.
+             * If provided, received messages will be compared with the body. If it won't be found, test will be
+             * considered as failed.
              *
              * @param message to compare.
              * @return self.
