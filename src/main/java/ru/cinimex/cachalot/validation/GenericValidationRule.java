@@ -38,6 +38,7 @@ public class GenericValidationRule<T> implements ValidationRule<T> {
 
     /**
      * Perform validation logic.
+     *
      * @return true if validation succeed, false otherwise.
      */
     @Override

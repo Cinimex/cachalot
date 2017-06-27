@@ -30,9 +30,12 @@ import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import ru.cinimex.cachalot.validation.GenericValidationRule;
+import ru.cinimex.cachalot.validation.JdbcValidationRule;
 import ru.cinimex.cachalot.validation.ValidationRule;
 
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.springframework.jms.support.destination.JmsDestinationAccessor.RECEIVE_TIMEOUT_NO_WAIT;
 import static org.springframework.util.Assert.isTrue;
 import static org.springframework.util.Assert.notEmpty;
@@ -110,25 +113,25 @@ public abstract class CachalotEntrails {
         revealWomb("Cachalot feeded");
 
         // sync cause we don't need parallel here
-        // it's jdbc preconditions run.
+        // it's jdbc preConditions run.
         Optional.ofNullable(jdbcCachalotEntrails).ifPresent(cachalotEntrails -> {
-            for (Supplier<? extends String> supplier : cachalotEntrails.initialState) {
+            for (Supplier<? extends String> supplier : cachalotEntrails.preConditions) {
                 String query = supplier.get();
                 revealWomb("Calling {}", query);
-                cachalotEntrails.jdbcTemplate.execute(query);
+                cachalotEntrails.template.execute(query);
             }
         });
 
         // sync cause we don't need parallel here
-        // it's jms preconditions run.
+        // it's jms preConditions run.
         Optional.ofNullable(jmsCachalotEntrails).ifPresent(cachalotEntrails -> {
             // check if client requested ravage
             if (cachalotEntrails.shouldRavage) {
                 revealWomb("Queues ravage requested");
                 // clear input queue first
-                cachalotEntrails.jmsTemplate.setReceiveTimeout(RECEIVE_TIMEOUT_NO_WAIT);
+                cachalotEntrails.template.setReceiveTimeout(RECEIVE_TIMEOUT_NO_WAIT);
                 int inputQueueMessagesCount = 0;
-                while (jmsCachalotEntrails.jmsTemplate.receive(cachalotEntrails.inQueue) != null) {
+                while (jmsCachalotEntrails.template.receive(cachalotEntrails.inQueue) != null) {
                     revealWomb("Cleared {} from input queue", ++inputQueueMessagesCount);
                 }
 
@@ -149,7 +152,7 @@ public abstract class CachalotEntrails {
         // it's jms sending.
         Optional.ofNullable(jmsCachalotEntrails).ifPresent(cachalotEntrails -> {
             revealWomb("Prepare to send {} into {}", cachalotEntrails.inMessage, cachalotEntrails.inQueue);
-            cachalotEntrails.jmsTemplate.send(cachalotEntrails.inQueue, session -> {
+            cachalotEntrails.template.send(cachalotEntrails.inQueue, session -> {
                 TextMessage message = session.createTextMessage();
                 if (cachalotEntrails.inMessage != null) {
                     message.setText(cachalotEntrails.inMessage);
@@ -171,7 +174,8 @@ public abstract class CachalotEntrails {
             if (cachalotEntrails.expectingResponse) {
                 long timeout = cachalotEntrails.timeout;
 
-                ExecutorService executor = Executors.newCachedThreadPool(new CustomizableThreadFactory("CachalotWatcher"));
+                CustomizableThreadFactory cachalotWatcher = new CustomizableThreadFactory("CachalotWatcher");
+                ExecutorService executor = Executors.newCachedThreadPool(cachalotWatcher);
 
                 try {
                     // possibility to uncontrolled growth.
@@ -207,7 +211,7 @@ public abstract class CachalotEntrails {
                         // get expectation, if the Callable was able to create it.
                         JmsCachalotEntrails.JmsExpectation expectation = call.get();
                         if (expectation == null) {
-                            Assert.fail("Message was not received in configured timeout: " + timeout + " millis");
+                            fail("Message was not received in configured timeout: " + timeout + " millis");
                         }
                         revealWomb("Received message:\n{}", expectation.actual);
                         digested.add(expectation);
@@ -220,15 +224,15 @@ public abstract class CachalotEntrails {
                             future.cancel(true);
                         }
                         // fail
-                        Assert.fail("Message receiving failed due to: " + cause);
+                        fail("Message receiving failed due to: " + cause);
                     }
                 }
                 for (JmsCachalotEntrails.JmsExpectation expectation : digested) {
                     if (expectation.expected != null) {
-                        Assert.assertEquals("Expected and actual messages differ!", expectation.expected, expectation.actual);
+                        assertEquals("Expected and actual not match!", expectation.expected, expectation.actual);
                     }
                     expectation.validationRules.forEach(rule -> {
-                        String error = "Test failed! \nMessage = " + expectation.actual + ", " + "\nrule = " + rule + ".";
+                        String error = "Test failed!\nMessage: " + expectation.actual + "\nrule: " + rule;
                         isTrue(rule.validate(expectation.actual), error);
                     });
                 }
@@ -238,8 +242,9 @@ public abstract class CachalotEntrails {
         // single threaded cause we don't need parallel here
         // jdbc post-conditions here
         Optional.ofNullable(jdbcCachalotEntrails).ifPresent(cachalotEntrails -> {
-            for (ValidationRule<?> validationRule : cachalotEntrails.terminalState) {
+            for (JdbcValidationRule<?> validationRule : cachalotEntrails.postConditions) {
                 long begin = System.currentTimeMillis();
+                validationRule.setTemplate(cachalotEntrails.template);
                 boolean validated = false;
                 // so, validation rule must eventually completes with success or error.
                 // eventually means that it could be async operations in tested system,
@@ -258,7 +263,7 @@ public abstract class CachalotEntrails {
 
                 if (!validated) {
                     revealWomb("Validation rule violated {}", validationRule);
-                    Assert.fail();
+                    fail();
                 } else {
                     revealWomb("Validation rule checked");
                 }
@@ -269,72 +274,72 @@ public abstract class CachalotEntrails {
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     protected final class JdbcCachalotEntrails {
 
-        private final JdbcTemplate jdbcTemplate;
-        private final Collection<Supplier<? extends String>> initialState = new ArrayList<>();
-        private final Collection<ValidationRule<?>> terminalState = new ArrayList<>();
+        private final JdbcTemplate template;
+        private final Collection<Supplier<? extends String>> preConditions = new ArrayList<>();
+        private final Collection<JdbcValidationRule<?>> postConditions = new ArrayList<>();
         private long timeout = 0;
 
         private JdbcCachalotEntrails(final DataSource dataSource) {
             notNull(dataSource, "DataSource must be specified");
-            jdbcTemplate = new JdbcTemplate(dataSource, true);
+            template = new JdbcTemplate(dataSource, true);
             revealWomb("JdbcTemplate initialized with {}", dataSource);
         }
 
         /**
-         * Initializer will be used before test execution for initial state manipulating.
+         * Query will be used before test execution for initial state manipulating.
          * It could be implemented as simple lambda: () -> "UPDATE MY_TABLE SET PROPERTY = 'AB' WHERE PROPERTY = 'BA'".
          * This method is not idempotent, i.e. each call will add statement to execute.
          *
-         * @param initializer is statement supplier to process.
+         * @param query is statement supplier to process.
          * @return self.
          */
-        public JdbcCachalotEntrails beforeFeed(Supplier<? extends String> initializer) {
-            notNull(initializer, "Given initializer must not be null");
-            initialState.add(initializer);
-            revealWomb("Initializer added {}", initializer);
+        public JdbcCachalotEntrails beforeFeed(Supplier<? extends String> query) {
+            notNull(query, "Given query must not be null");
+            preConditions.add(query);
+            revealWomb("Query added {}", query);
             return this;
         }
 
         /**
-         * Same as #beforeFeed(Supplier<? extends String> initializer), but for multiple statements.
+         * Same as #beforeFeed(Supplier<? extends String> query), but for multiple statements.
          *
-         * @param initializers are statement suppliers to process.
+         * @param queries are statement suppliers to process.
          * @return self.
          */
-        public JdbcCachalotEntrails beforeFeed(Collection<Supplier<? extends String>> initializers) {
-            notNull(initializers, "Given initializers must not be null");
-            notEmpty(initializers, "Given initializers must not be null");
-            initialState.addAll(initializers);
-            revealWomb("Initializers added {}", initializers);
+        public JdbcCachalotEntrails beforeFeed(Collection<Supplier<? extends String>> queries) {
+            notNull(queries, "Given queries must not be null");
+            notEmpty(queries, "Given queries must not be null");
+            preConditions.addAll(queries);
+            revealWomb("Queries added {}", queries);
             return this;
         }
 
         /**
          * Validate database state after test run.
          * This method is not idempotent, i.e. each call will add a rule to validate.
-         * It rule validation fail, then test will be considered as failed.
+         * If rule validation fail, then test will be considered as failed.
          *
-         * @param verificator is {@link ValidationRule} to check.
+         * @param rule is {@link JdbcValidationRule} to check.
          * @return self.
          */
-        public JdbcCachalotEntrails afterFeed(ValidationRule<?> verificator) {
-            notNull(verificator, "Given verificator must not be null");
-            terminalState.add(verificator);
-            revealWomb("Verificator added {}", verificator);
+        public JdbcCachalotEntrails afterFeed(JdbcValidationRule<?> rule) {
+            notNull(rule, "Given rule must not be null");
+            postConditions.add(rule);
+            revealWomb("Rule added {}", rule);
             return this;
         }
 
         /**
-         * Same as #afterFeed(JdbcValidationRule<?> verificator), but for multiple rules at once.
+         * Same as #afterFeed(JdbcValidationRule<?> rule), but for multiple rules at once.
          *
-         * @param verificators are {@link ValidationRule} to check.
+         * @param rules are {@link JdbcValidationRule} to check.
          * @return self.
          */
-        public JdbcCachalotEntrails afterFeed(Collection<ValidationRule<?>> verificators) {
-            notNull(verificators, "Given verificators must not be null");
-            notEmpty(verificators, "Given verificators must not be null");
-            terminalState.addAll(verificators);
-            revealWomb("Verificators added {}", verificators);
+        public JdbcCachalotEntrails afterFeed(Collection<JdbcValidationRule<?>> rules) {
+            notNull(rules, "Given rules must not be null");
+            notEmpty(rules, "Given rules must not be null");
+            postConditions.addAll(rules);
+            revealWomb("Rules added {}", rules);
             return this;
         }
 
@@ -364,23 +369,23 @@ public abstract class CachalotEntrails {
     @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     protected final class JmsCachalotEntrails {
 
-        private final JmsTemplate jmsTemplate;
+        private final JmsTemplate template;
         private final Map<String, ? super Object> headers = new ConcurrentHashMap<>();
         private String inQueue;
         private String inMessage;
         private boolean expectingResponse = true;
         private boolean shouldRavage = false;
         private long timeout = JmsTemplate.RECEIVE_TIMEOUT_INDEFINITE_WAIT;
-        private Collection<JmsExpectation> expectations = new CopyOnWriteArrayList<>();
+        private final Collection<JmsExpectation> expectations = new CopyOnWriteArrayList<>();
 
         private JmsCachalotEntrails(final ConnectionFactory factory) {
             notNull(factory, "Provided connection factory must not be null");
-            jmsTemplate = new JmsTemplate(factory);
+            template = new JmsTemplate(factory);
             revealWomb("JmsTemplate initialized with {}", factory);
         }
 
         private void validateState(String callFrom) {
-            notNull(jmsTemplate, "Illegal call #" + callFrom + " before CachalotEntrails#usingJms");
+            notNull(template, "Illegal call #" + callFrom + " before CachalotEntrails#usingJms");
         }
 
         /**
@@ -397,7 +402,8 @@ public abstract class CachalotEntrails {
 
         /**
          * @param queue message queue to receive message from. This queue will be added to response queue collection.
-         *              By default assumed, that each queue produce one message. I.e. if you want to receive multiple messages
+         *              By default assumed, that each queue produce one message. I.e. if you want to receive multiple
+         *              messages
          *              from one queue, you can call this method multiple times.
          *              This method call is not idempotent: it's changing state of underlying infrastructure.
          * @return {@link JmsExpectation} instance.
@@ -480,6 +486,7 @@ public abstract class CachalotEntrails {
          * If specified, the {@code input} and all {@code output} queues will be cleared before
          * test run. Clearing will be performed as {@link JmsTemplate#receive} with
          * {@link JmsTemplate#RECEIVE_TIMEOUT_NO_WAIT} timeout.
+         *
          * @return self.
          */
         public JmsCachalotEntrails withRavage() {
@@ -493,7 +500,7 @@ public abstract class CachalotEntrails {
          * @return {@link CachalotEntrails} as main config.
          */
         public CachalotEntrails ingest() {
-            if (jmsTemplate != null) {
+            if (template != null) {
                 notNull(inQueue, "Send queue must be specified");
 
                 if (!expectations.isEmpty()) {
@@ -505,13 +512,15 @@ public abstract class CachalotEntrails {
                     notEmpty(expectations, "Receive queues must be specified");
                     revealWomb("Receivers added. Count: {}", expectations.size());
                 } else {
-                    Assert.assertThat("Response not expected, but jms response queue was provided", expectations, hasSize(0));
+                    Assert.assertThat("Response not expected, but jms response queue was provided", expectations,
+                            hasSize(0));
                 }
             }
             return CachalotEntrails.this;
         }
 
         public class JmsExpectation {
+
             @NonNull
             private String queue;
             private String expected;
@@ -521,7 +530,7 @@ public abstract class CachalotEntrails {
 
             private JmsExpectation(String queue) {
                 this.queue = queue;
-                this.template = new JmsTemplate(jmsTemplate.getConnectionFactory());
+                this.template = new JmsTemplate(JmsCachalotEntrails.this.template.getConnectionFactory());
                 revealWomb("Out queue set {}", queue);
             }
 
