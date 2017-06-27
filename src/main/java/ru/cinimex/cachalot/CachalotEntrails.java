@@ -113,7 +113,7 @@ public abstract class CachalotEntrails {
         revealWomb("Cachalot feeded");
 
         // sync cause we don't need parallel here
-        // it's jdbc preConditions run.
+        // it's jdbc preconditions run.
         Optional.ofNullable(jdbcCachalotEntrails).ifPresent(cachalotEntrails -> {
             for (Supplier<? extends String> supplier : cachalotEntrails.preConditions) {
                 String query = supplier.get();
@@ -123,7 +123,7 @@ public abstract class CachalotEntrails {
         });
 
         // sync cause we don't need parallel here
-        // it's jms preConditions run.
+        // it's jms preconditions run.
         Optional.ofNullable(jmsCachalotEntrails).ifPresent(cachalotEntrails -> {
             // check if client requested ravage
             if (cachalotEntrails.shouldRavage) {
