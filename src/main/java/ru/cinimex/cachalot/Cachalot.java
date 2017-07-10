@@ -21,8 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class Cachalot extends Womb {
 
     private final List<Womb> wombs = new ArrayList<>();
-    private final Comparator<? super Womb> start = Comparator.comparing(Womb::getStartPriority);
-    private final Comparator<? super Womb> end = Comparator.comparing(Womb::getEndPriority);
+    private final Comparator<? super Womb> start = Comparator.comparing(Womb::getStartPriority).reversed();
+    private final Comparator<? super Womb> end = Comparator.comparing(Womb::getEndPriority).reversed();
 
     /**
      * Configure your test flow using {@link Cachalot} dsl.

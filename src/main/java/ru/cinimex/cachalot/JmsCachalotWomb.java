@@ -220,7 +220,7 @@ public class JmsCachalotWomb extends Womb {
                 expectation.getTemplate().setReceiveTimeout(RECEIVE_TIMEOUT_NO_WAIT);
                 int outputQueueMessagesCount = 0;
                 while (expectation.getTemplate().receive(expectation.getQueue()) != null) {
-                    revealWomb("Cleared {} from {} queue", ++inputQueueMessagesCount, expectation.getQueue());
+                    revealWomb("Cleared {} message(s) from {} queue", ++outputQueueMessagesCount, expectation.getQueue());
                 }
             }
             revealWomb("Queues ravaged");
