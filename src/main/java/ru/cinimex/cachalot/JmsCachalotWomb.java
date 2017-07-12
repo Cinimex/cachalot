@@ -3,10 +3,10 @@ package ru.cinimex.cachalot;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionService;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
@@ -33,7 +33,8 @@ import static org.springframework.jms.support.destination.JmsDestinationAccessor
 import static org.springframework.util.Assert.isTrue;
 import static org.springframework.util.Assert.notEmpty;
 import static org.springframework.util.Assert.notNull;
-import static ru.cinimex.cachalot.Priority.*;
+import static ru.cinimex.cachalot.Priority.JMS_DEFAULT_PRIORITY_END;
+import static ru.cinimex.cachalot.Priority.JMS_DEFAULT_PRIORITY_START;
 
 @Getter(AccessLevel.PACKAGE)
 @SuppressWarnings({"unused"})
@@ -43,10 +44,10 @@ public class JmsCachalotWomb extends Womb {
     private final JmsTemplate template;
     private final AtomicLong index = new AtomicLong();
     private final AtomicLong offersIndex = new AtomicLong();
-    private final Map<String, ? super Object> headers = new ConcurrentHashMap<>();
+    private final Map<String, ? super Object> headers = new HashMap<>();
     private final Collection<JmsExpectation> digested = new ArrayList<>();
-    private final Collection<JmsExpectation> expectations = new CopyOnWriteArrayList<>();
-    private final Collection<JmsOffer> offers = new CopyOnWriteArrayList<>();
+    private final Collection<JmsExpectation> expectations = new ArrayList<>();
+    private final Collection<JmsOffer> offers = new ArrayList<>();
 
     private boolean shouldRavage = false;
     private boolean expectingResponse = true;
@@ -228,7 +229,7 @@ public class JmsCachalotWomb extends Womb {
 
         offers.forEach(offer -> {
             // it's jms sending.
-            revealWomb("Prepare to send {} into {}", offer.getMessages(), offer.getQueue());
+            revealWomb("Prepare to send {} message(s) into {}", offer.getMessages().size(), offer.getQueue());
             offer.getMessages().forEach(inMessage -> {
                 offer.getTemplate().send(offer.getQueue(), session -> {
                     TextMessage message = session.createTextMessage();
@@ -257,7 +258,7 @@ public class JmsCachalotWomb extends Womb {
         }
 
         final Collection<Future<Collection<JmsExpectation>>> calls = new CopyOnWriteArrayList<>();
-        final CustomizableThreadFactory cachalotWatcher = new CustomizableThreadFactory("CachalotWatcher");
+        final CustomizableThreadFactory cachalotWatcher = new CustomizableThreadFactory("cachalot-worker-");
         final ExecutorService executor = Executors.newCachedThreadPool(cachalotWatcher);
 
         try {
@@ -288,7 +289,7 @@ public class JmsCachalotWomb extends Womb {
                                 fail("Unexpected exception during message processing: " + e);
                             }
                         } else {
-                            revealWomb("Received unknown type jms message {}", message);
+                            fail("Received unknown type jms message or null: " + message);
                         }
                     });
                     return expectationsByQueue;
@@ -312,7 +313,7 @@ public class JmsCachalotWomb extends Womb {
                     fail("Message was not received in configured timeout: " + timeout + " millis");
                 }
                 expectations.forEach(expectation -> {
-                    revealWomb("Received message:\n{}", expectation.getActual());
+                    revealWomb("Received message:\n{}\n", expectation.getActual());
                     digested.add(expectation);
                 });
             } catch (Exception e) {
@@ -332,7 +333,7 @@ public class JmsCachalotWomb extends Womb {
                 assertEquals("Expected and actual not match!", expectation.getExpected(), expectation.getActual());
             }
             expectation.getRules().forEach(rule -> {
-                String error = "Test failed!\nMessage: " + expectation.getActual() + "\nrule: " + rule;
+                String error = "Test failed!\nRule: " + rule + "\nMessage: " + expectation.getActual() + "\n";
                 isTrue(rule.validate(expectation.getActual()), error);
             });
         }

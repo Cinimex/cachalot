@@ -68,15 +68,15 @@ public class JdbcValidationRule<T> implements ValidationRule<T> {
     public boolean validate(T noopItem) {
         notNull(template, "Template must not be null");
         List<T> items = template.query(query, mapper);
-        log.debug("Returned items size: {}", items.size());
         if (items.isEmpty()) {
+            log.debug("Query return no items, can't process any check");
             return false;
         }
         for (T item : items) {
-            log.debug("Validating {}", item);
             for (Predicate<T> predicate : predicates) {
                 if (!predicate.test(item)) {
-                    log.error("Rule violation occurred: {}: {}", predicate, item);
+                    log.debug("Validating {}", item);
+                    log.error("Rule violation for predicate: {} and query: {}", predicate, query);
                     return false;
                 }
             }

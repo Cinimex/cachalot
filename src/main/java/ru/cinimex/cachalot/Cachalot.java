@@ -92,6 +92,8 @@ public abstract class Cachalot extends Womb {
             womb.setTraceOn(traceOn);
             try {
                 womb.before();
+            } catch (RuntimeException | AssertionError toThrowUp) {
+                throw  toThrowUp;
             } catch (Exception e) {
                 log.error("Unrecoverable Cachalot exception: ", e);
                 throw new RuntimeException("Unrecoverable Cachalot exception", e);
@@ -105,6 +107,8 @@ public abstract class Cachalot extends Womb {
             womb.setTraceOn(traceOn);
             try {
                 womb.after();
+            } catch (RuntimeException | AssertionError toThrowUp) {
+                throw  toThrowUp;
             } catch (Exception e) {
                 log.error("Unrecoverable Cachalot exception: ", e);
                 throw new RuntimeException("Unrecoverable Cachalot exception", e);
