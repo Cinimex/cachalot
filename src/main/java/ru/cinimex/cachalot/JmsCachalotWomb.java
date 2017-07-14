@@ -242,7 +242,7 @@ public class JmsCachalotWomb extends Womb {
                     revealWomb("Message {} created", message);
                     return message;
                 });
-                revealWomb("Message successfully sent into {}", offer.getQueue());
+                revealWomb("Message(s) successfully sent into {}", offer.getQueue());
             });
 
         });
