@@ -1,6 +1,7 @@
 package ru.cinimex.cachalot;
 
 @SuppressWarnings("unused")
+// TODO Javadoc
 public final class Priority {
 
     // no instances pls

@@ -18,11 +18,11 @@ import lombok.extern.slf4j.Slf4j;
 @RunWith(SpringRunner.class)
 @SuppressWarnings({"unused", "WeakerAccess"})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public abstract class Cachalot extends Womb {
+public abstract class Cachalot extends Maw {
 
-    private final List<Womb> wombs = new ArrayList<>();
-    private final Comparator<? super Womb> start = Comparator.comparing(Womb::getStartPriority).reversed();
-    private final Comparator<? super Womb> end = Comparator.comparing(Womb::getEndPriority).reversed();
+    private final List<Maw> maws = new ArrayList<>();
+    private final Comparator<? super Maw> start = Comparator.comparing(Maw::getStartPriority).reversed();
+    private final Comparator<? super Maw> end = Comparator.comparing(Maw::getEndPriority).reversed();
 
     /**
      * Configure your test flow using {@link Cachalot} dsl.
@@ -48,11 +48,11 @@ public abstract class Cachalot extends Womb {
      * jms related api calls.
      *
      * @param factory is {@link ConnectionFactory}
-     * @return nested config as {@link JmsCachalotWomb}
+     * @return nested config as {@link JmsCachalotMaw}
      */
-    public JmsCachalotWomb usingJms(final ConnectionFactory factory) {
-        JmsCachalotWomb womb = new JmsCachalotWomb(this, factory, traceOn);
-        wombs.add(womb);
+    public JmsCachalotMaw usingJms(final ConnectionFactory factory) {
+        JmsCachalotMaw womb = new JmsCachalotMaw(this, factory, traceOn);
+        maws.add(womb);
         return womb;
     }
 
@@ -60,11 +60,11 @@ public abstract class Cachalot extends Womb {
      * Indicates, that your test use database for manipulating data before/after execution.
      *
      * @param dataSource is {@link DataSource}
-     * @return nested config as {@link JdbcCachalotWomb}
+     * @return nested config as {@link JdbcCachalotMaw}
      */
-    public JdbcCachalotWomb usingJdbc(final DataSource dataSource) {
-        JdbcCachalotWomb womb = new JdbcCachalotWomb(this, dataSource, traceOn);
-        wombs.add(womb);
+    public JdbcCachalotMaw usingJdbc(final DataSource dataSource) {
+        JdbcCachalotMaw womb = new JdbcCachalotMaw(this, dataSource, traceOn);
+        maws.add(womb);
         return womb;
     }
 
@@ -79,19 +79,19 @@ public abstract class Cachalot extends Womb {
         feed();
         revealWomb("Cachalot feeded");
 
-        wombs.sort(start);
-        wombs.forEach(this::before);
+        maws.sort(start);
+        maws.forEach(this::before);
 
-        wombs.sort(end);
-        wombs.forEach(this::after);
+        maws.sort(end);
+        maws.forEach(this::after);
     }
 
-    private void before(Womb womb) {
-        if (womb != null) {
+    private void before(Maw maw) {
+        if (maw != null) {
             // set actual logging for that moment
-            womb.setTraceOn(traceOn);
+            maw.setTraceOn(traceOn);
             try {
-                womb.before();
+                maw.before();
             } catch (RuntimeException | AssertionError toThrowUp) {
                 throw  toThrowUp;
             } catch (Exception e) {
@@ -101,12 +101,12 @@ public abstract class Cachalot extends Womb {
         }
     }
 
-    private void after(Womb womb) {
-        if (womb != null) {
+    private void after(Maw maw) {
+        if (maw != null) {
             // set actual logging for that moment
-            womb.setTraceOn(traceOn);
+            maw.setTraceOn(traceOn);
             try {
-                womb.after();
+                maw.after();
             } catch (RuntimeException | AssertionError toThrowUp) {
                 throw  toThrowUp;
             } catch (Exception e) {

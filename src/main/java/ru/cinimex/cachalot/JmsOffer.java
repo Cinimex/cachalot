@@ -22,10 +22,10 @@ public class JmsOffer extends Traceable {
     private final long id;
     private final String queue;
     private final JmsTemplate template;
-    private final JmsCachalotWomb parent;
+    private final JmsCachalotMaw parent;
     private final Collection<String> messages = new ArrayList<>();
 
-    JmsOffer(JmsCachalotWomb parent, JmsTemplate template, @NonNull String queue, long id) {
+    JmsOffer(JmsCachalotMaw parent, JmsTemplate template, @NonNull String queue, long id) {
         this.id = id;
         this.queue = queue;
         this.parent = parent;
@@ -34,7 +34,7 @@ public class JmsOffer extends Traceable {
     }
 
     /**
-     * @param message to send. It could be any string text.
+     * @param message to send. It could be any {@link String}.
      * @return self.
      */
     public JmsOffer withSpecifiedInput(String message) {
@@ -46,7 +46,7 @@ public class JmsOffer extends Traceable {
     }
 
     /**
-     * @param messages to send. It could be any collection containing messages as plain text.
+     * @param messages to send. It could be any collection containing {@link String} messages.
      * @return self.
      */
     public JmsOffer withSpecifiedInput(Collection<String> messages) {
@@ -58,7 +58,7 @@ public class JmsOffer extends Traceable {
         return this;
     }
 
-    public JmsCachalotWomb ingest() {
+    public JmsCachalotMaw ingest() {
         return parent;
     }
 

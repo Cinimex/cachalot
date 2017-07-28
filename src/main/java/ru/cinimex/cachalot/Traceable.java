@@ -5,6 +5,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
+// TODO Javadoc
 abstract class Traceable {
 
     @Setter(AccessLevel.PACKAGE)

@@ -3,7 +3,8 @@ package ru.cinimex.cachalot;
 import lombok.AccessLevel;
 import lombok.Getter;
 
-abstract class Womb extends Traceable {
+// TODO Javadoc
+abstract class Maw extends Traceable {
 
     // priority of lifecycle execution
     @Getter(AccessLevel.PACKAGE)
@@ -12,12 +13,12 @@ abstract class Womb extends Traceable {
     int endPriority;
 
     @SuppressWarnings("WeakerAccess")
-    Womb(final int startPriority, final int endPriority) {
+    Maw(final int startPriority, final int endPriority) {
         this.startPriority = startPriority;
         this.endPriority = endPriority;
     }
 
-    Womb() {
+    Maw() {
         // lowest priority
         this(0, 0);
     }
@@ -31,7 +32,7 @@ abstract class Womb extends Traceable {
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    Womb withStartPriority(int priority) {
+    Maw withStartPriority(int priority) {
         if (priority < 0 || priority > 100) {
             throw new IllegalArgumentException("Priority should be in range 0-100");
         }
@@ -40,7 +41,7 @@ abstract class Womb extends Traceable {
     }
 
     @SuppressWarnings("UnusedReturnValue")
-    Womb withEndPriority(int priority) {
+    Maw withEndPriority(int priority) {
         if (priority < 0 || priority > 100) {
             throw new IllegalArgumentException("Priority should be in range 0-100");
         }
