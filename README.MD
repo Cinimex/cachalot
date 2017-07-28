@@ -49,6 +49,7 @@ Frequently, the only way to test complex server-side logic is via remote calls t
 
 ```java
 class MyAwesomeScenario extends ru.cinimex.cachalot.Cachalot {
+    
     @Override
     protected void feed() throws Exception {
     }
@@ -158,6 +159,7 @@ Note: you can change execution order of any subsystem with order:
 
 ```java
 class MyAwesomeScenario extends ru.cinimex.cachalot.Cachalot {
+    
     @Override
     protected void feed() throws Exception {
         usingJdbc(datasource)

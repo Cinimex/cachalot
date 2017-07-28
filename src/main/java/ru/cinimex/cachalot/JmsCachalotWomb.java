@@ -18,7 +18,6 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.TextMessage;
 
-import org.junit.Assert;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 
@@ -29,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import static java.util.stream.Collectors.groupingBy;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 import static org.springframework.jms.support.destination.JmsDestinationAccessor.RECEIVE_TIMEOUT_NO_WAIT;
 import static org.springframework.util.Assert.isTrue;
@@ -185,20 +185,12 @@ public class JmsCachalotWomb extends Womb {
      * @return {@link Cachalot} as main config.
      */
     public Cachalot ingest() {
-        if (template != null) {
-            notEmpty(offers, "Send queue must be specified");
-
-            if (!expectations.isEmpty()) {
-                String error = "Jms destinations present, at the same time response is not expected";
-                isTrue(expectingResponse, error);
-            }
-            if (expectingResponse) {
-                notNull(expectations, "Receive queues must be specified");
-                notEmpty(expectations, "Receive queues must be specified");
-                revealWomb("Receivers added. Count: {}", expectations.size());
-            } else {
-                Assert.assertThat("Response not expected, but jms response queue was provided", expectations, hasSize(0));
-            }
+        if (expectingResponse) {
+            notNull(expectations, "Receive queues must be specified");
+            notEmpty(expectations, "Receive queues must be specified");
+            revealWomb("Receivers added. Count: {}", expectations.size());
+        } else {
+            assertThat("Response not expected, but jms response queue was provided", expectations, hasSize(0));
         }
         return parent;
     }
