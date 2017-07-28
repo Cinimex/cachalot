@@ -43,12 +43,12 @@
                                                                                              @@*  #,.#      @%                   
                                                                                                   &@@@@@@#                       
  
- <h3>Как кормить кашалота:</h3>
+ <h3>How to feed:</h3>
  
  * Inherit and Override:  
 
 ```java
-class MyAwesomeScenario extends CachalotEntrails {
+class MyAwesomeScenario extends ru.cinimex.cachalot.Cachalot {
     @Override
     protected void feed() throws Exception {
     }
@@ -58,20 +58,26 @@ class MyAwesomeScenario extends CachalotEntrails {
  * Use dsl inside feed to describe your scenario (it's a bit like Camel):  
 
 ```java
-class MyAwesomeScenario extends CachalotEntrails {
+class MyAwesomeScenario extends ru.cinimex.cachalot.Cachalot {
+    
     @Override
     protected void feed() throws Exception {
+        
         enableDataTrace()
             .usingJms(factory)
-                .sendTo("INPUT_QUEUE")
-                .withSpecifiedInput("<Message></Message>")
-                .receiveFrom("OUTPUT_QUEUE")
-                .withExpectedResponse("<Message><Transformed/></Message>")
                 .waitNotMoreThen(7000)
-            .ingest()
-            .withState(dataSource)
+                .withRavage()
+                .sendTo("INPUT_QUEUE")
+                    .withSpecifiedInput("<Message></Message>")
+                .ingest()    
+                .receiveFrom("OUTPUT_QUEUE")
+                    .withExpectedResponse("<Message><Transformed/></Message>")
+                    .addRule(s -> !s.isEmpty())
+                .ingest()
+            .ingest()    
+            .usingJdbc(dataSource)
                 .beforeFeed(() -> "TRUNCATE MY_TABLE CASCADE")
-                .afterFeed(rule)
+                .afterFeed(new JdbcValidationRule<>(myMapper, Objects::nonNull, "SELECT * FROM RESULT_TABLE"))
             .ingest();
     }
 }
@@ -83,8 +89,11 @@ class MyAwesomeScenario extends CachalotEntrails {
  
 * enableDataTrace()  
     
-        local logs will contain all information about configuration and processing.
+        Local logs will contain all information about configuration and processing.
         The output can be quite complex.   
+* withRavage()  
+    
+        All messages from specified in/out queues will be cleared before jms subsystem run.           
 * usingJms(ConnectionFactory factory)
 
         Indicates, that your test use jms as underlying system. Method accepts 
@@ -111,7 +120,7 @@ class MyAwesomeScenario extends CachalotEntrails {
         Same as #withExpectedResponse(String message), but all messages will be compared with responses.
 * waitNotMoreThen(long millis)  
         
-        Timeout for each message to be received.
+        Timeout for each output queue to process.
 * withoutResponse()  
         
         Indicates in-only interaction. Test flow won't be waiting for response.
@@ -124,7 +133,7 @@ class MyAwesomeScenario extends CachalotEntrails {
 * ingest()  
 
         Complete the subsystem (jms or jdbc or any...) configuration and returns to main config.
-* withState(DataSource dataSource)  
+* usingJdbc(DataSource dataSource)  
        
         Indicates, that your test use database for manipulating data before/after execution.
 * beforeFeed(Supplier<? extends String> initializer)  
@@ -145,3 +154,20 @@ class MyAwesomeScenario extends CachalotEntrails {
         Same as #afterFeed(JdbcValidationRule<?> verificator), but for multiple predicates at once.
           
           
+Note: you can change execution order of any subsystem with order:
+
+```java
+class MyAwesomeScenario extends ru.cinimex.cachalot.Cachalot {
+    @Override
+    protected void feed() throws Exception {
+        usingJdbc(datasource)
+            .withStartPriority(12) // priority of initial step
+            .withEndPriority(99) // priority of completion step
+            .beforeFeed(() -> "UPDATE XXX")
+        .ingest();    
+    }
+}
+```
+
+Priority could be any number in [0, 100].
+Subsystem with highest priority will execute first.
