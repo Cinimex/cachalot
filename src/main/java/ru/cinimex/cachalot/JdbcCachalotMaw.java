@@ -15,11 +15,11 @@ import static org.springframework.util.Assert.notEmpty;
 import static org.springframework.util.Assert.notNull;
 import static ru.cinimex.cachalot.Priority.*;
 
-@Slf4j
-@SuppressWarnings({"unused"})
 /**
  * This Maw enables Cachalot to receive and validate data form JDBC DataSource
  */
+@Slf4j
+@SuppressWarnings({"unused"})
 public class JdbcCachalotMaw extends Maw {
 
     private final JdbcTemplate template;
@@ -125,6 +125,7 @@ public class JdbcCachalotMaw extends Maw {
      *
      * @return {@link Cachalot} as main config.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public Cachalot ingest() {
         return parent;
     }

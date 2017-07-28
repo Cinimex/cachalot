@@ -37,12 +37,12 @@ import static org.springframework.util.Assert.notNull;
 import static ru.cinimex.cachalot.Priority.JMS_DEFAULT_PRIORITY_END;
 import static ru.cinimex.cachalot.Priority.JMS_DEFAULT_PRIORITY_START;
 
-@Slf4j
-@Getter(AccessLevel.PACKAGE)
-@SuppressWarnings({"unused"})
 /**
  * This Maw enables Cachalot to send, consume and validate data via JMS Queues
  */
+@Slf4j
+@Getter(AccessLevel.PACKAGE)
+@SuppressWarnings({"unused"})
 public class JmsCachalotMaw extends Maw {
 
     private final Cachalot parent;

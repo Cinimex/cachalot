@@ -51,9 +51,9 @@ public abstract class Cachalot extends Maw {
      * @return nested config as {@link JmsCachalotMaw}
      */
     public JmsCachalotMaw usingJms(final ConnectionFactory factory) {
-        JmsCachalotMaw womb = new JmsCachalotMaw(this, factory, traceOn);
-        maws.add(womb);
-        return womb;
+        JmsCachalotMaw maw = new JmsCachalotMaw(this, factory, traceOn);
+        maws.add(maw);
+        return maw;
     }
 
     /**
@@ -63,9 +63,9 @@ public abstract class Cachalot extends Maw {
      * @return nested config as {@link JdbcCachalotMaw}
      */
     public JdbcCachalotMaw usingJdbc(final DataSource dataSource) {
-        JdbcCachalotMaw womb = new JdbcCachalotMaw(this, dataSource, traceOn);
-        maws.add(womb);
-        return womb;
+        JdbcCachalotMaw maw = new JdbcCachalotMaw(this, dataSource, traceOn);
+        maws.add(maw);
+        return maw;
     }
 
     /**
