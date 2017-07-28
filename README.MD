@@ -2,7 +2,9 @@
 Cachalot is a testing framework created for backend-heavy spring-based Java applications.
 Frequently, the only way to test complex server-side logic is via remote calls through JMS, or some other protocol. This is the situation Cachalot was designed for.
  
-![Cachalot][cachalot.png]                                                                                                                                 
+
+![cachalot](cachalot.png)                                                                                                                             
+ 
  
 ## How to feed 
 
