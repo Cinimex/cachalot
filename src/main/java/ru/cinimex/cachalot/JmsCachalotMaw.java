@@ -40,7 +40,10 @@ import static ru.cinimex.cachalot.Priority.JMS_DEFAULT_PRIORITY_START;
 @Slf4j
 @Getter(AccessLevel.PACKAGE)
 @SuppressWarnings({"unused"})
-public class JmsCachalotWomb extends Womb {
+/**
+ * This Maw enables Cachalot to send, consume and validate data via JMS Queues
+ */
+public class JmsCachalotMaw extends Maw {
 
     private final Cachalot parent;
     private final JmsTemplate template;
@@ -56,7 +59,7 @@ public class JmsCachalotWomb extends Womb {
     private long timeout = JmsTemplate.RECEIVE_TIMEOUT_INDEFINITE_WAIT;
     private CompletionService<Collection<JmsExpectation>> cachalotTummy;
 
-    JmsCachalotWomb(final Cachalot parent, final ConnectionFactory factory, final boolean traceOn) {
+    JmsCachalotMaw(final Cachalot parent, final ConnectionFactory factory, final boolean traceOn) {
         super(JMS_DEFAULT_PRIORITY_START, JMS_DEFAULT_PRIORITY_END);
         notNull(factory, "Provided connection factory must not be null");
         this.parent = parent;
@@ -107,7 +110,7 @@ public class JmsCachalotWomb extends Womb {
      * @param headers to append.
      * @return self.
      */
-    public JmsCachalotWomb withHeaders(Map<String, ?> headers) {
+    public JmsCachalotMaw withHeaders(Map<String, ?> headers) {
         validateState("withHeaders");
         notNull(headers, "Headers must be specified");
         this.headers.putAll(headers);
@@ -122,7 +125,7 @@ public class JmsCachalotWomb extends Womb {
      * @param value  to append.
      * @return self.
      */
-    public JmsCachalotWomb withHeader(String header, Object value) {
+    public JmsCachalotMaw withHeader(String header, Object value) {
         validateState("withHeader");
         notNull(header, "Header name must be specified");
         notNull(value, "Header value must be specified");
@@ -136,7 +139,7 @@ public class JmsCachalotWomb extends Womb {
      *
      * @return self.
      */
-    public JmsCachalotWomb withoutResponse() {
+    public JmsCachalotMaw withoutResponse() {
         validateState("withoutResponse");
         expectingResponse = false;
         //noinspection ConstantConditions
@@ -148,7 +151,7 @@ public class JmsCachalotWomb extends Womb {
      * @param millis timeout for each message to be received.
      * @return self.
      */
-    public JmsCachalotWomb waitNotMoreThen(long millis) {
+    public JmsCachalotMaw waitNotMoreThen(long millis) {
         validateState("waitNotMoreThen");
         timeout = millis;
         revealWomb("Timeout set to {} millis", millis);
@@ -162,19 +165,19 @@ public class JmsCachalotWomb extends Womb {
      *
      * @return self.
      */
-    public JmsCachalotWomb withRavage() {
+    public JmsCachalotMaw withRavage() {
         shouldRavage = true;
         return this;
     }
 
     @Override
-    public JmsCachalotWomb withStartPriority(int priority) {
+    public JmsCachalotMaw withStartPriority(int priority) {
         super.withStartPriority(priority);
         return this;
     }
 
     @Override
-    public JmsCachalotWomb withEndPriority(int priority) {
+    public JmsCachalotMaw withEndPriority(int priority) {
         super.withEndPriority(priority);
         return this;
     }

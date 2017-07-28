@@ -17,7 +17,10 @@ import static ru.cinimex.cachalot.Priority.*;
 
 @Slf4j
 @SuppressWarnings({"unused"})
-public class JdbcCachalotWomb extends Womb {
+/**
+ * This Maw enables Cachalot to receive and validate data form JDBC DataSource
+ */
+public class JdbcCachalotMaw extends Maw {
 
     private final JdbcTemplate template;
     private final Cachalot parent;
@@ -25,7 +28,7 @@ public class JdbcCachalotWomb extends Womb {
     private final Collection<JdbcValidationRule<?>> postConditions = new ArrayList<>();
     private long timeout = 0;
 
-    JdbcCachalotWomb(final Cachalot parent, final DataSource dataSource, final boolean traceOn) {
+    JdbcCachalotMaw(final Cachalot parent, final DataSource dataSource, final boolean traceOn) {
         // expecting to execute before - with high priority, end - with low
         super(JDBC_DEFAULT_PRIORITY_START, JDBC_DEFAULT_PRIORITY_END);
         notNull(dataSource, "DataSource must be specified");
@@ -43,7 +46,7 @@ public class JdbcCachalotWomb extends Womb {
      * @param query is statement supplier to process.
      * @return self.
      */
-    public JdbcCachalotWomb beforeFeed(Supplier<? extends String> query) {
+    public JdbcCachalotMaw beforeFeed(Supplier<? extends String> query) {
         notNull(query, "Given query must not be null");
         preConditions.add(query);
         revealWomb("Query added {}", query);
@@ -56,7 +59,7 @@ public class JdbcCachalotWomb extends Womb {
      * @param queries are statement suppliers to process.
      * @return self.
      */
-    public JdbcCachalotWomb beforeFeed(Collection<Supplier<? extends String>> queries) {
+    public JdbcCachalotMaw beforeFeed(Collection<Supplier<? extends String>> queries) {
         notNull(queries, "Given queries must not be null");
         notEmpty(queries, "Given queries must not be null");
         preConditions.addAll(queries);
@@ -72,7 +75,7 @@ public class JdbcCachalotWomb extends Womb {
      * @param rule is {@link JdbcValidationRule} to check.
      * @return self.
      */
-    public JdbcCachalotWomb afterFeed(JdbcValidationRule<?> rule) {
+    public JdbcCachalotMaw afterFeed(JdbcValidationRule<?> rule) {
         notNull(rule, "Given rule must not be null");
         postConditions.add(rule);
         revealWomb("Rule added {}", rule);
@@ -85,7 +88,7 @@ public class JdbcCachalotWomb extends Womb {
      * @param rules are {@link JdbcValidationRule} to check.
      * @return self.
      */
-    public JdbcCachalotWomb afterFeed(Collection<JdbcValidationRule<?>> rules) {
+    public JdbcCachalotMaw afterFeed(Collection<JdbcValidationRule<?>> rules) {
         notNull(rules, "Given rules must not be null");
         notEmpty(rules, "Given rules must not be null");
         postConditions.addAll(rules);
@@ -99,20 +102,20 @@ public class JdbcCachalotWomb extends Womb {
      *               test intended to be failed.
      * @return self.
      */
-    public JdbcCachalotWomb waitNotMoreThen(long millis) {
+    public JdbcCachalotMaw waitNotMoreThen(long millis) {
         timeout = millis;
         revealWomb("Timeout set to {} millis", millis);
         return this;
     }
 
     @Override
-    public JdbcCachalotWomb withStartPriority(int priority) {
+    public JdbcCachalotMaw withStartPriority(int priority) {
         super.withStartPriority(priority);
         return this;
     }
 
     @Override
-    public JdbcCachalotWomb withEndPriority(int priority) {
+    public JdbcCachalotMaw withEndPriority(int priority) {
         super.withEndPriority(priority);
         return this;
     }

@@ -26,14 +26,14 @@ public class JmsExpectation extends Traceable {
     private final long id;
     private final String queue;
     private final JmsTemplate template;
-    private final JmsCachalotWomb parent;
+    private final JmsCachalotMaw parent;
     private final Collection<Predicate<? super String>> rules = new ArrayList<>();
 
     @Setter(AccessLevel.PACKAGE)
     private String actual;
     private String expected;
 
-    JmsExpectation(JmsCachalotWomb parent, ConnectionFactory factory, @NonNull String queue, long id) {
+    JmsExpectation(JmsCachalotMaw parent, ConnectionFactory factory, @NonNull String queue, long id) {
         this.id = id;
         this.queue = queue;
         this.parent = parent;
@@ -73,7 +73,7 @@ public class JmsExpectation extends Traceable {
         return this;
     }
 
-    public JmsCachalotWomb ingest() {
+    public JmsCachalotMaw ingest() {
         return parent;
     }
 

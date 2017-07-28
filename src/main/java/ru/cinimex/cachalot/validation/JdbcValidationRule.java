@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import static org.springframework.util.Assert.notNull;
 
 /**
- * Check to perform with database.
+ * JDBC validation rule
  *
  * @param <T> is entity type to check.
  */
