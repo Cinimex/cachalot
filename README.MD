@@ -1,6 +1,6 @@
- <h1>Cachalot</h1>
- 
- Simple infrastructure for spring-based applications integration testing.
+# Cachalot - a Java acceptance testing framework for rich backends
+Cachalot is a testing framework created for backend-heavy spring-based Java applications.
+Frequently, the only way to test complex server-side logic is via remote calls through JMS, or some other protocol. This is the situation Cachalot was designed for.
  
                                                                                                                                  
             #@     @,                                                                                                            
@@ -43,8 +43,8 @@
                                                                                              @@*  #,.#      @%                   
                                                                                                   &@@@@@@#                       
  
- <h3>How to feed:</h3>
- 
+## How to feed 
+
  * Inherit and Override:  
 
 ```java
