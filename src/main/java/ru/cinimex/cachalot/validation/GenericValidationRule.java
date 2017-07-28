@@ -1,12 +1,12 @@
 package ru.cinimex.cachalot.validation;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.function.Predicate;
 
 import org.springframework.util.Assert;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Free condition validation rule.
@@ -15,7 +15,7 @@ import org.springframework.util.Assert;
  */
 @Slf4j
 @SuppressWarnings("unused")
-public class GenericValidationRule<T> implements ValidationRule<T> {
+public class GenericValidationRule<T> implements Predicate<T> {
 
     private final Collection<Predicate<T>> predicates = new ArrayList<>();
 
@@ -42,7 +42,7 @@ public class GenericValidationRule<T> implements ValidationRule<T> {
      * @return true if validation succeed, false otherwise.
      */
     @Override
-    public boolean validate(T item) {
+    public boolean test(T item) {
         for (Predicate<T> predicate : predicates) {
             if (!(predicate.test(item))) {
                 log.error("Rule violation occurred: {}: {}", predicate, item);

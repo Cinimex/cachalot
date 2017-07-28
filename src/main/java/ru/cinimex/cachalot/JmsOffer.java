@@ -9,13 +9,15 @@ import org.springframework.jms.core.JmsTemplate;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
 import static org.springframework.util.Assert.notEmpty;
 import static org.springframework.util.Assert.notNull;
 
+@Slf4j
 @SuppressWarnings({"unused", "MismatchedQueryAndUpdateOfCollection"})
 @Getter(AccessLevel.PACKAGE)
-public class JmsOffer extends Womb {
+public class JmsOffer extends Traceable {
 
     private final long id;
     private final String queue;

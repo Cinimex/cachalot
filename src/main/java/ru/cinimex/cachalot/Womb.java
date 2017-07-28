@@ -2,14 +2,9 @@ package ru.cinimex.cachalot;
 
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
-abstract class Womb {
+abstract class Womb extends Traceable {
 
-    @Setter(AccessLevel.PACKAGE)
-    boolean traceOn;
     // priority of lifecycle execution
     @Getter(AccessLevel.PACKAGE)
     int startPriority;
@@ -25,18 +20,6 @@ abstract class Womb {
     Womb() {
         // lowest priority
         this(0, 0);
-    }
-
-    void revealWomb(String say, Object... what) {
-        if (traceOn) {
-            log.info(say, what);
-        }
-    }
-
-    @SuppressWarnings("unused")
-    void revealWomb(boolean traceOn, String say, Object... what) {
-        this.traceOn = traceOn;
-        revealWomb(say, what);
     }
 
     void before() throws Exception {

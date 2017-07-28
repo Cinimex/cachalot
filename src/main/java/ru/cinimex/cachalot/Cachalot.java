@@ -62,7 +62,7 @@ public abstract class Cachalot extends Womb {
      * @param dataSource is {@link DataSource}
      * @return nested config as {@link JdbcCachalotWomb}
      */
-    public JdbcCachalotWomb withState(final DataSource dataSource) {
+    public JdbcCachalotWomb usingJdbc(final DataSource dataSource) {
         JdbcCachalotWomb womb = new JdbcCachalotWomb(this, dataSource, traceOn);
         wombs.add(womb);
         return womb;

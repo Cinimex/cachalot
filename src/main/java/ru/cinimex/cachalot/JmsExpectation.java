@@ -3,6 +3,7 @@ package ru.cinimex.cachalot;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Objects;
+import java.util.function.Predicate;
 
 import javax.jms.ConnectionFactory;
 
@@ -12,20 +13,21 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import ru.cinimex.cachalot.validation.GenericValidationRule;
-import ru.cinimex.cachalot.validation.ValidationRule;
 
 import static org.springframework.util.Assert.notNull;
 
+@Slf4j
 @Getter(AccessLevel.PACKAGE)
 @SuppressWarnings({"MismatchedQueryAndUpdateOfCollection", "WeakerAccess", "unused"})
-public class JmsExpectation extends Womb {
+public class JmsExpectation extends Traceable {
 
     private final long id;
     private final String queue;
     private final JmsTemplate template;
     private final JmsCachalotWomb parent;
-    private final Collection<ValidationRule<? super String>> rules = new ArrayList<>();
+    private final Collection<Predicate<? super String>> rules = new ArrayList<>();
 
     @Setter(AccessLevel.PACKAGE)
     private String actual;
@@ -40,18 +42,18 @@ public class JmsExpectation extends Womb {
     }
 
     /**
-     * @param rule is {@link ValidationRule} instance. It could be {@link GenericValidationRule} or custom
+     * @param rule is {@link Predicate} instance. It could be {@link GenericValidationRule} or custom
      *             implementation of the rule. If provided, received message will be validated against this
      *             rule. If it returns false, test will be considered as failed.
      *             Note: this operation, like many others, is not idempotent. I.e. it changes the state of
      *             underlying infrastructure. You can add multiple rules for one message by calling
-     *             {@link #addRule(ValidationRule)} multiple times.
+     *             {@link #addRule(Predicate)} multiple times.
      * @return self.
      */
     @SuppressWarnings("JavaDoc")
-    public JmsExpectation addRule(ValidationRule<? super String> rule) {
+    public JmsExpectation addRule(Predicate<? super String> rule) {
         notNull(rule, "Given rule must not be null");
-        rules.add(rule);
+        rules.add(new GenericValidationRule<>(rule));
         revealWomb("Rule added {}", rule);
         return this;
     }

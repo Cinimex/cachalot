@@ -24,6 +24,7 @@ import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import static java.util.stream.Collectors.groupingBy;
 import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
@@ -36,6 +37,7 @@ import static org.springframework.util.Assert.notNull;
 import static ru.cinimex.cachalot.Priority.JMS_DEFAULT_PRIORITY_END;
 import static ru.cinimex.cachalot.Priority.JMS_DEFAULT_PRIORITY_START;
 
+@Slf4j
 @Getter(AccessLevel.PACKAGE)
 @SuppressWarnings({"unused"})
 public class JmsCachalotWomb extends Womb {
@@ -75,6 +77,7 @@ public class JmsCachalotWomb extends Womb {
         validateState("sendTo");
         notNull(queue, "Send queue must be specified");
         JmsOffer offer = new JmsOffer(this, template, queue, offersIndex.getAndIncrement());
+        offer.setTraceOn(traceOn);
         offers.add(offer);
         revealWomb("In queue set {}", queue);
         return offer;
@@ -93,6 +96,7 @@ public class JmsCachalotWomb extends Womb {
         notNull(queue, "Receive queue must be specified");
         long index = this.index.getAndIncrement();
         JmsExpectation expectation = new JmsExpectation(this, template.getConnectionFactory(), queue, index);
+        expectation.setTraceOn(traceOn);
         expectations.add(expectation);
         return expectation;
     }
@@ -279,7 +283,7 @@ public class JmsCachalotWomb extends Womb {
                         revealWomb("Calling response from {} with timeout {} millis", expectation.getQueue(), timeout);
                         expectation.getTemplate().setReceiveTimeout(timeout);
                         Message message = expectation.getTemplate().receive(key);
-                        //Avoid null check, but works only fro text message for now.
+                        // for now just for text messages
                         if (message instanceof TextMessage) {
                             revealWomb("Received text message");
                             try {
@@ -289,7 +293,10 @@ public class JmsCachalotWomb extends Womb {
                                 fail("Unexpected exception during message processing: " + e);
                             }
                         } else {
-                            fail("Received unknown type jms message or null: " + message);
+                            if (message == null) {
+                                fail("Message wasn't received in specified amount of time");
+                            }
+                            fail("Received unknown type jms message: " + message);
                         }
                     });
                     return expectationsByQueue;
@@ -334,7 +341,7 @@ public class JmsCachalotWomb extends Womb {
             }
             expectation.getRules().forEach(rule -> {
                 String error = "Test failed!\nRule: " + rule + "\nMessage: " + expectation.getActual() + "\n";
-                isTrue(rule.validate(expectation.getActual()), error);
+                isTrue(rule.test(expectation.getActual()), error);
             });
         }
     }

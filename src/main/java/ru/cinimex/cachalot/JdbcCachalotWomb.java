@@ -7,14 +7,15 @@ import javax.sql.DataSource;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import lombok.extern.slf4j.Slf4j;
 import ru.cinimex.cachalot.validation.JdbcValidationRule;
-import ru.cinimex.cachalot.validation.ValidationRule;
 
 import static org.junit.Assert.fail;
 import static org.springframework.util.Assert.notEmpty;
 import static org.springframework.util.Assert.notNull;
 import static ru.cinimex.cachalot.Priority.*;
 
+@Slf4j
 @SuppressWarnings({"unused"})
 public class JdbcCachalotWomb extends Womb {
 
@@ -94,7 +95,7 @@ public class JdbcCachalotWomb extends Womb {
 
     /**
      * @param millis timeout for rule to be validated. (It's could be async processing)
-     *               If {@link ValidationRule} returns false even after timeout,
+     *               If {@link java.util.function.Predicate} returns false even after timeout,
      *               test intended to be failed.
      * @return self.
      */
@@ -148,7 +149,7 @@ public class JdbcCachalotWomb extends Womb {
             // eventually means that it could be async operations in tested system,
             // so we need to wait the time lag to make the correct check.
             do {
-                if (validationRule.validate(null)) {
+                if (validationRule.test(null)) {
                     validated = true;
                 }
                 // wait for a while.

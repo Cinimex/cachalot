@@ -20,7 +20,7 @@ import static org.springframework.util.Assert.notNull;
  */
 @Slf4j
 @SuppressWarnings("unused")
-public class JdbcValidationRule<T> implements ValidationRule<T> {
+public class JdbcValidationRule<T> implements Predicate<T> {
 
     @Setter
     private JdbcTemplate template;
@@ -65,7 +65,8 @@ public class JdbcValidationRule<T> implements ValidationRule<T> {
      *
      * @return true if validation succeed, false otherwise.
      */
-    public boolean validate(T noopItem) {
+    @Override
+    public boolean test(T noopItem) {
         notNull(template, "Template must not be null");
         List<T> items = template.query(query, mapper);
         if (items.isEmpty()) {
